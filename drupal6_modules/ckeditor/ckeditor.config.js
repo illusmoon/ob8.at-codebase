@@ -104,6 +104,8 @@ CKEDITOR.editorConfig = function(config) {
    */
   config.bodyClass = 'singlepage';
   config.bodyId = 'primary';
+  config.extraCss += "body{background:#FFF;text-align:left;font-size:0.8em;}";
+  config.extraCss += "#primary ol, #primary ul{margin:10px 0 10px 25px;}";
   /**
    * Sample bodyClass and BodyId for the "marinelli" theme.
    */
