@@ -102,8 +102,8 @@ CKEDITOR.editorConfig = function(config) {
    * See http://drupal.ckeditor.com/tricks
    * This setting can be used if CKEditor does not work well with your theme by default.
    */
-  config.bodyClass = '';
-  config.bodyId = '';
+  config.bodyClass = 'singlepage';
+  config.bodyId = 'primary';
   /**
    * Sample bodyClass and BodyId for the "marinelli" theme.
    */
