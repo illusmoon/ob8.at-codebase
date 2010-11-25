@@ -1,0 +1,5 @@
+/* $Id: flattr.css,v 1.1.2.1 2010/04/27 19:21:38 sanduhrs Exp $ */
+.flattr-box {
+  float:left;
+  padding-top:5px;
+}
