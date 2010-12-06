@@ -1,0 +1,23 @@
+<?php
+// $Id: flattr.install,v 1.1.2.3 2010/04/27 19:21:38 sanduhrs Exp $
+
+/**
+ * @file
+ * Flattr integration
+ *
+ * @author
+ * Stefan Auditor <stefan.auditor@erdfisch.de>
+ */
+
+/**
+ * Implement HOOK_install().
+ */
+function flattr_install() {
+}
+
+/**
+ * Implement HOOK_uninstall().
+ */
+function flattr_uninstall() {
+  db_query("DELETE FROM {variable} WHERE name LIKE 'flattr_%'");
+}

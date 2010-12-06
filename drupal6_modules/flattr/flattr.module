@@ -1,0 +1,258 @@
+<?php
+// $Id: flattr.module,v 1.1.2.16 2010/07/27 15:19:44 dereine Exp $
+
+/**
+ * @file
+ * Flattr integration
+ *
+ * @author
+ * Stefan Auditor <stefan.auditor@erdfisch.de>
+ * Daniel Wehner <daniel.wehner@erdfisch.de>
+ */
+
+/**
+ * Impement HOOK_form_alter().
+ */
+function flattr_form_alter(&$form, &$form_state, $form_id) {
+  if (user_access('administer flattr') && $form_id == 'node_type_form') {
+    $form['flattr'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Flattr settings'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+    );
+    $form['flattr']['flattr_cat'] = array(
+      '#type' => 'select',
+      '#title' => t('Category'),
+      '#default_value' => variable_get('flattr_cat_' . $form['#node_type']->type, 'text'),
+      '#options' => array(
+        ''         => t("Don't use flattr"),
+        'text'     => t('Written text'),
+        'images'   => t('Images'),
+        'video'    => t('Video'),
+        'audio'    => t('Audio'),
+        'software' => t('Software'),
+        'rest'     => t('The rest'),
+      ),
+      '#description' => t('This is the flattr category the content belongs to.'),
+    );
+  }
+}
+
+/**
+ * Impement HOOK_perm().
+ */
+function flattr_perm() {
+  return array('use flattr', 'administer flattr');
+}
+
+/**
+* Implements hook_content_extra_fields().
+*/
+function flattr_content_extra_fields($type) {
+  $extras['flattr'] = array(
+    'label' => t('Flattr'),
+    'description' => t('Flattr icon.'),
+    'weight' => 10,
+  );
+  return $extras;
+}
+
+/**
+ * Implement HOOK_user().
+ */
+function flattr_user($op, &$edit, &$account, $category = NULL) {
+  if ($op == 'form' && $category == 'account') {
+    if (user_access('use flattr', $account)) {
+      $form['flattr'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Flattr social micropayment'),
+        '#collapsible' => TRUE,
+        '#weight' => 4,
+        '#tree' => TRUE,
+      );
+      $form['flattr']['uid'] = array(
+        '#type' => 'textfield',
+        '#title' => t('User ID'),
+        '#default_value' => $edit['flattr']['uid'],
+        '#description' => t('Your signature will be publicly displayed at the end of your comments.'),
+      );
+      return $form;
+    }
+  }
+}
+
+/**
+* Implements hook_block().
+*/
+function flattr_block($op = 'list', $delta = 0, $edit = array()) {
+  switch ($op) {
+    case 'list':
+      $blocks['button'] = array(
+        'info' => t('Flattr button'),
+        'cache' => BLOCK_NO_CACHE,
+      );
+      return $blocks;
+    case 'view':
+      if ($node = menu_get_object()) {
+        $account = user_load($node->uid);
+        $block['subject'] = t('Flattr');
+        $block['content'] = theme('flattr_button', $node, $account);
+        return $block;
+      }
+  }
+}
+
+/**
+ * Implement HOOK_nodeapi().
+ */
+function flattr_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  switch ($op) {
+    case 'view':
+      if (variable_get('flattr_cat_' . $node->type, NULL)) {
+        $account = user_load($node->uid);
+        if (user_access('use flattr', $account) && $account->flattr['uid'] && !$a3) {
+          $node->content['flattr'] = array(
+            '#value' => theme('flattr_button', $node, $account),
+            '#weight' => module_exists('content') ? content_extra_field_weight($node->type, 'flattr') : -10,
+          );
+        }
+      }
+      break;
+  }
+}
+
+/**
+ * Implement HOOK_theme().
+ */
+function flattr_theme($existing, $type, $theme, $path) {
+  return array(
+    'flattr_button' => array(
+      'arguments' => array('node' => NULL, 'account' => NULL),
+    ),
+  );
+}
+
+/**
+ * Themeable flattr button
+ */
+function theme_flattr_button($node, $account) {
+  drupal_add_css(drupal_get_path('module', 'flattr') . '/flattr.css');
+  $output = '<div class="flattr-box">';
+  $output .= '<script type="text/javascript">' . "\n";
+  $output .= "  var flattr_uid = '" . check_plain($account->flattr['uid']) . "';" . "\n";
+  if ($node->title) {
+    $output .= "  var flattr_tle = '" . check_plain($node->title) . "';" . "\n";
+  }
+
+  if ($node->teaser) {
+    $teaser = preg_replace("/\r|\n/s", "", $node->teaser);
+  }
+  if (empty($teaser)) {
+    $teaser = preg_replace("/\r|\n/s", "", node_teaser($node->body, NULL, 50));
+  }
+  if (empty($teaser)) {
+    $teaser = t('No description');
+  }
+  $output .= "  var flattr_dsc = '" . trim(check_plain($teaser)) . "';" . "\n";
+
+  if (is_array($node->taxonomy)) {
+    $output .= "  var flattr_tag = '" . flattr_taxonomy_terms_to_text($node->taxonomy) . "';" . "\n";
+  }
+  $output .= "  var flattr_cat = '" . check_plain(variable_get('flattr_cat_' . $node->type, 'text')) . "';" . "\n";
+  $output .= "  var flattr_url = '" . url('node/' . $node->nid, array('absolute' => TRUE)) . "';" . "\n";
+  $output .= "  var flattr_lng = '". check_plain(flattr_node_language($node)) ."'";
+  $output .= "</script>" . "\n";
+  $output .= '<script src="http://api.flattr.com/button/load.js" type="text/javascript"></script>' . "\n";
+  $output .= '</div>';
+  return $output;
+}
+
+/* Helper functions */
+
+/**
+ * Taxonomy terms to comma seperated plain text
+ */
+function flattr_taxonomy_terms_to_text($taxonomy) {
+  $terms = '';
+  $items = array();
+  foreach ($taxonomy as $tid => $term) {
+    $items[] = check_plain($term->name);
+  }
+  $terms = implode(',', $items);
+  return $terms;
+}
+
+/**
+ * Get the language of the current node.
+ */
+function flattr_node_language($node) {
+  $langcode = $node->language ? $node->language : $GLOBALS['language']->language;
+  $langs = _flattr_languages();
+  // If this language is not translated yet default to en_GB.
+  $langcode = $langs[$langcode];
+  return $langcode ? $langcode : 'en_GB';
+}
+
+/**
+ * List all availible languages.
+ */
+function _flattr_languages() {
+  return array(
+//     ' ' => 'sq_AL',
+//     ' ' => 'ar_DZ',
+//     ' ' => 'be_BY',
+//     ' ' => 'bg_BG',
+//     ' ' => 'ca_ES',
+//     ' ' => 'zh_CN',
+//     ' ' => 'hr_HR',
+//     ' ' => 'cs_CZ',
+//     ' ' => 'da_DK',
+//     ' ' => 'nl_NL',
+    'en' => 'en_GB',
+//     ' ' => 'et_EE',
+//     ' ' => 'fi_FI',
+//     ' ' => 'fr_FR',
+    'de' => 'de_DE',
+//     ' ' => 'el_GR',
+//     ' ' => 'iw_IL',
+//     ' ' => 'hi_IN',
+//     ' ' => 'hu_HU',
+//     ' ' => 'is_IS',
+//     ' ' => 'in_ID',
+//     ' ' => 'ga_IE',
+//     ' ' => 'it_IT',
+//     ' ' => 'ja_JP',
+//     ' ' => 'ko_KR',
+//     ' ' => 'lv_LV',
+//     ' ' => 'lt_LT',
+//     ' ' => 'mk_MK',
+//     ' ' => 'ms_MY',
+//     ' ' => 'mt_MT',
+//     ' ' => 'no_NO',
+//     ' ' => 'pl_PL',
+//     ' ' => 'pt_PT',
+//     ' ' => 'ro_RO',
+//     ' ' => 'ru_RU',
+//     ' ' => 'sr_RS',
+//     ' ' => 'sk_SK',
+//     ' ' => 'sl_SI',
+//     ' ' => 'es_ES',
+//     ' ' => 'sv_SE',
+//     ' ' => 'th_TH',
+//     ' ' => 'tr_TR',
+//     ' ' => 'uk_UA',
+//     ' ' => 'vi_VN',
+  );
+}
+
+/* Implement extra apis. */
+
+/**
+ * Implements hook_views_api().
+ */
+function flattr_views_api() {
+  return array(
+    'api' => 2.0,
+  );
+}

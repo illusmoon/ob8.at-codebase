@@ -1,0 +1,11 @@
+; $Id: flattr.info,v 1.1.2.4 2010/04/27 19:21:38 sanduhrs Exp $
+name = Flattr
+description = A social micropayment platform that lets you show love for the things you like.
+core = 6.x
+
+; Information added by drupal.org packaging script on 2010-07-27
+version = "6.x-1.0-beta5"
+core = "6.x"
+project = "flattr"
+datestamp = "1280244310"
+
