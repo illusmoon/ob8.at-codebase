@@ -1,0 +1,188 @@
+$content['extra']  = array (
+  'title' => '-5',
+  'body_field' => '-2',
+  'menu' => '-4',
+  'gallery_photos_node_content_1' => '-1',
+  'gallery_photos_node_content_2' => '-3',
+);
+$content['type']  = array (
+  'name' => 'Photo',
+  'type' => 'photo',
+  'description' => 'An individual photograph posted by a site user.',
+  'title_label' => 'Title',
+  'body_label' => '',
+  'min_word_count' => '0',
+  'help' => '',
+  'node_options' => 
+  array (
+    'status' => true,
+    'promote' => false,
+    'sticky' => false,
+    'revision' => false,
+  ),
+  'old_type' => 'photo',
+  'orig_type' => '',
+  'module' => 'node',
+  'custom' => '1',
+  'modified' => '1',
+  'locked' => '0',
+  'comment' => '2',
+  'comment_default_mode' => '4',
+  'comment_default_order' => '1',
+  'comment_default_per_page' => '50',
+  'comment_controls' => '3',
+  'comment_anonymous' => 0,
+  'comment_subject_field' => '1',
+  'comment_preview' => '1',
+  'comment_form_location' => '0',
+);
+$content['fields']  = array (
+  0 => 
+  array (
+    'label' => 'Image',
+    'field_name' => 'field_image',
+    'type' => 'filefield',
+    'widget_type' => 'imagefield_widget',
+    'change' => 'Change basic information',
+    'weight' => '-3',
+    'file_extensions' => 'jpg png gif jpeg',
+    'progress_indicator' => 'bar',
+    'file_path' => 'photos',
+    'max_filesize_per_file' => '',
+    'max_filesize_per_node' => '',
+    'max_resolution' => 0,
+    'min_resolution' => 0,
+    'custom_alt' => 0,
+    'alt' => '',
+    'custom_title' => 0,
+    'title_type' => 'textfield',
+    'title' => '',
+    'use_default_image' => 0,
+    'default_image_upload' => '',
+    'default_image' => NULL,
+    'description' => '',
+    'required' => 1,
+    'multiple' => '0',
+    'list_field' => '0',
+    'list_default' => 1,
+    'description_field' => '0',
+    'op' => 'Save field settings',
+    'module' => 'filefield',
+    'widget_module' => 'imagefield',
+    'columns' => 
+    array (
+      'fid' => 
+      array (
+        'type' => 'int',
+        'not null' => false,
+        'views' => true,
+      ),
+      'list' => 
+      array (
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => false,
+        'views' => true,
+      ),
+      'data' => 
+      array (
+        'type' => 'text',
+        'serialize' => true,
+        'views' => true,
+      ),
+    ),
+    'display_settings' => 
+    array (
+      'weight' => '-3',
+      'parent' => '',
+      4 => 
+      array (
+        'format' => 'reg_linked',
+        'exclude' => 0,
+      ),
+      'label' => 
+      array (
+        'format' => 'hidden',
+      ),
+      'teaser' => 
+      array (
+        'format' => 'thumb_linked',
+        'exclude' => 0,
+      ),
+      'full' => 
+      array (
+        'format' => 'reg_imagelink',
+        'exclude' => 0,
+      ),
+    ),
+  ),
+  1 => 
+  array (
+    'label' => 'Gallery',
+    'field_name' => 'field_gallery',
+    'type' => 'nodereference',
+    'widget_type' => 'nodereference_url',
+    'change' => 'Change basic information',
+    'weight' => '-2',
+    'fallback' => 'select',
+    'node_link' => 
+    array (
+      'full' => 1,
+      'teaser' => 0,
+      'title' => 'Add photo',
+      'hover_title' => '',
+      'destination' => 'node',
+    ),
+    'description' => '',
+    'required' => 1,
+    'multiple' => '0',
+    'referenceable_types' => 
+    array (
+      'gallery' => 'gallery',
+      'photo' => 0,
+    ),
+    'advanced_view' => '--',
+    'advanced_view_args' => '',
+    'op' => 'Save field settings',
+    'module' => 'nodereference',
+    'widget_module' => 'nodereference_url',
+    'columns' => 
+    array (
+      'nid' => 
+      array (
+        'type' => 'int',
+        'unsigned' => true,
+        'not null' => false,
+      ),
+    ),
+    'display_settings' => 
+    array (
+      'weight' => '-2',
+      'parent' => '',
+      4 => 
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      'label' => 
+      array (
+        'format' => 'inline',
+      ),
+      'teaser' => 
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+      'full' => 
+      array (
+        'format' => 'default',
+        'exclude' => 0,
+      ),
+    ),
+  ),
+);
+$content['extra']  = array (
+  'title' => '-5',
+  'body_field' => '-1',
+  'menu' => '-4',
+);
