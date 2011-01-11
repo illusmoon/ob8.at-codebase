@@ -1,5 +1,5 @@
 <?php
-// $Id: content_handler_field_multiple.inc,v 1.1.2.18.2.7 2011/01/04 10:36:21 yched Exp $
+// $Id: content_handler_field_multiple.inc,v 1.1.2.26 2011/01/07 13:33:55 yched Exp $
 
 /**
  * @file
@@ -202,6 +202,14 @@ class content_handler_field_multiple extends content_handler_field {
     // let the generic method handle the output.
     if (isset($this->options['element_type']) && $this->options['element_type'] !== '') {
       return parent::element_type($none_supported, $default_empty);
+    }
+
+    if ($default_empty) {
+      return '';
+    }
+
+    if (isset($this->definition['element type'])) {
+      return $this->definition['element type'];
     }
 
     return 'div';

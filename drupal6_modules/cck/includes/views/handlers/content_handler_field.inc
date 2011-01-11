@@ -1,5 +1,5 @@
 <?php
-// $Id: content_handler_field.inc,v 1.1.2.15.2.5 2011/01/04 10:36:21 yched Exp $
+// $Id: content_handler_field.inc,v 1.1.2.21 2011/01/07 13:33:55 yched Exp $
 
 /**
  * @file
@@ -143,6 +143,14 @@ class content_handler_field extends views_handler_field_node {
     // let the generic method handle the output.
     if (isset($this->options['element_type']) && $this->options['element_type'] !== '') {
       return parent::element_type($none_supported, $default_empty);
+    }
+
+    if ($default_empty) {
+      return '';
+    }
+
+    if (isset($this->definition['element type'])) {
+      return $this->definition['element type'];
     }
 
     // TODO Figure out exactly when to return a div or a <span>. Any field
