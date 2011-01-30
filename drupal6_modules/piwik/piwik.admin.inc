@@ -1,5 +1,5 @@
 <?php
-// $Id: piwik.admin.inc,v 1.1.2.19 2009/06/16 10:43:26 hass Exp $
+// $Id: piwik.admin.inc,v 1.1.2.22 2010/10/10 16:39:36 hass Exp $
 
 /**
  * @file
@@ -138,7 +138,8 @@ function piwik_admin_settings_form(&$form_state) {
     '#type' => 'textfield',
     '#title' => t('File extensions to track'),
     '#default_value' => variable_get('piwik_trackfiles_extensions', PK_TRACKFILES_EXTENSIONS),
-    '#description' => t('A pipe separated list of file extensions that should be tracked when clicked with regular expression support. Example: !extensions', array('!extensions' => PK_TRACKFILES_EXTENSIONS))
+    '#description' => t('A pipe separated list of file extensions that should be tracked when clicked with regular expression support. Example: !extensions', array('!extensions' => PK_TRACKFILES_EXTENSIONS)),
+    '#maxlength' => 255,
   );
 
   // Advanced feature configurations.
@@ -169,6 +170,18 @@ function piwik_admin_settings_form(&$form_state) {
       '#default_value' => variable_get('piwik_translation_set', 0),
     );
   }
+
+  $site_search_dependencies = '<div class="admin-dependencies">';
+  $site_search_dependencies .= t('Depends on: !dependencies', array('!dependencies' => (module_exists('search') ? t('@module (<span class="admin-enabled">enabled</span>)', array('@module' => 'Search')) : t('@module (<span class="admin-disabled">disabled</span>)', array('@module' => 'Search')))));
+  $site_search_dependencies .= '</div>';
+
+  $form['advanced']['piwik_site_search'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Track internal search') . ' (EXPERIMENTAL)',
+    '#description' => t('If checked, internal search keywords are tracked. You must manually install and configure the Site Search plugin for your sites. For the setting <em>Search URL</em> use a value of <strong>search</strong> and for <em>Search Parameter</em> use a value of <strong>query</strong>. For more information see <a href="@url">SiteSearch plugin for piwik</a>.', array('@url' => 'http://github.com/BeezyT/piwik-sitesearch/wiki')) . $site_search_dependencies,
+    '#default_value' => variable_get('piwik_site_search', FALSE),
+    '#disabled' => (module_exists('search') ? FALSE : TRUE),
+  );
 
   $form['advanced']['codesnippet'] = array(
     '#type' => 'fieldset',
@@ -225,6 +238,11 @@ function piwik_admin_settings_form_validate($form, &$form_state) {
     if ($result->code != 200) {
       form_set_error('piwik_url_https', t('The validation of "@url" failed with error "@error" (HTTP code @code).', array('@url' => check_url($url), '@error' => $result->error, '@code' => $result->code)));
     }
+  }
+
+  // Delete obsolete local cache file.
+  if (empty($form_state['values']['piwik_cache']) && $form['advanced']['piwik_cache']['#default_value']) {
+    piwik_clear_js_cache();
   }
 
   // This is for the Newbie's who cannot read a text area description.

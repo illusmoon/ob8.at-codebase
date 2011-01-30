@@ -1,5 +1,5 @@
 <?php
-// $Id: visitors-overview.tpl.php,v 1.1.2.5 2009/06/16 10:54:56 hass Exp $
+// $Id: visitors-overview.tpl.php,v 1.1.2.8 2010/10/09 15:20:08 hass Exp $
 ?>
 <h2><?php
   switch ($period) {
@@ -11,11 +11,6 @@
       print t('Visitors in time period by day');
   }
 ?></h2>
-<!-- 
-<div id="VisitsSummarygetLastVisitsGraphChart">
-  <iframe width="100%" height="200" src="<?php print $widget1_url ?>" scrolling="no" frameborder="0" marginheight="0" marginwidth="0"></iframe>
-</div>
- -->
 <div class="content">
   <object width="100%" height="300" type="application/x-shockwave-flash" data="<?php print $piwik_url ?>/libs/open-flash-chart/open-flash-chart.swf?v2i" id="VisitsSummarygetLastVisitsGraphChart">
     <param name="allowScriptAccess" value="always"/>

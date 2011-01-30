@@ -1,5 +1,5 @@
 <?php
-// $Id: visitors-times.tpl.php,v 1.1.2.4 2009/06/13 13:19:43 hass Exp $
+// $Id: visitors-times.tpl.php,v 1.1.2.6 2010/10/09 15:20:08 hass Exp $
 ?>
 <h2><?php print t('Visit per local time') ?></h2>
 <div class="content">

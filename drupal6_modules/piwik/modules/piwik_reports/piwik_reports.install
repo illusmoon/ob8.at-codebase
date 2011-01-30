@@ -1,5 +1,5 @@
 <?php
-// $Id: piwik_reports.install,v 1.1.2.5 2009/03/14 23:38:29 hass Exp $
+// $Id: piwik_reports.install,v 1.1.2.7 2010/10/09 15:20:08 hass Exp $
 
 /**
  * @file

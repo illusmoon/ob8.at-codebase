@@ -1,5 +1,5 @@
 <?php
-// $Id: piwik_reports.module,v 1.1.2.10 2009/06/16 11:05:49 hass Exp $
+// $Id: piwik_reports.module,v 1.1.2.14 2010/10/09 15:20:08 hass Exp $
 
 /**
  * @file
@@ -163,7 +163,6 @@ function piwik_reports_theme() {
       'arguments' => array(
         'piwik_url' => NULL,
         'data1_url' => NULL,
-        'widget1_url' => NULL,
         'period' => NULL,
       ),
     ),
@@ -175,10 +174,6 @@ function piwik_reports_theme() {
         'data2_url' => NULL,
         'data3_url' => NULL,
         'data4_url' => NULL,
-        'widget1_url' => NULL,
-        'widget2_url' => NULL,
-        'widget3_url' => NULL,
-        'widget4_url' => NULL,
       ),
     ),
     'visitors_times' => array(
@@ -216,8 +211,8 @@ function piwik_reports_theme() {
  * Implementation of hook_form_alter().
  */
 function piwik_reports_form_alter(&$form, $form_state, $form_id) {
-  // Extend the form in "user/{userid}/edit".
-  if ('user_profile_form' == $form_id && user_access('access site reports')) {
+  // Extend the form in "user/{userid}/edit/account".
+  if ($form_id == 'user_profile_form' && $form['_category']['#value'] == 'account' && user_access('access site reports')) {
     global $user;
 
     // Make sure the fieldset is also visible if user do not have permission
