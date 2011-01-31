@@ -1,5 +1,5 @@
 <?php
-// $Id: piwik.admin.inc,v 1.1.2.22 2010/10/10 16:39:36 hass Exp $
+// $Id: piwik.admin.inc,v 1.3.4.5 2011/01/30 21:30:44 hass Exp $
 
 /**
  * @file
@@ -32,7 +32,7 @@ function piwik_admin_settings_form(&$form_state) {
     '#size' => 80,
     '#maxlength' => 255,
     '#required' => TRUE,
-    '#description' => t('The URL to your Piwik base directory. Example: "http://www.example.com/piwik".'),
+    '#description' => t('The URL to your Piwik base directory. Example: "http://www.example.com/piwik/".'),
   );
   $form['account']['piwik_url_https'] = array(
     '#type' => 'textfield',
@@ -40,7 +40,7 @@ function piwik_admin_settings_form(&$form_state) {
     '#default_value' => variable_get('piwik_url_https', ''),
     '#size' => 80,
     '#maxlength' => 255,
-    '#description' => t('The URL to your Piwik base directory with SSL certificate installed. Required if you track a SSL enabled website. Example: "https://www.example.com/piwik".'),
+    '#description' => t('The URL to your Piwik base directory with SSL certificate installed. Required if you track a SSL enabled website. Example: "https://www.example.com/piwik/".'),
   );
 
   // Standard tracking configurations.
@@ -142,6 +142,27 @@ function piwik_admin_settings_form(&$form_state) {
     '#maxlength' => 255,
   );
 
+  // Piwik page title tree view settings.
+  $form['page_title_hierarchy'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Page titles hierarchy'),
+    '#description' => t('This functionality enables a dynamically expandable tree view of your site page titles in your Piwik statistics. See in Piwik statistics under <em>Actions</em> > <em>Page titles</em>.'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+  $form['page_title_hierarchy']['piwik_page_title_hierarchy'] = array(
+    '#type' => 'checkbox',
+    '#title' => t("Show page titles as hierarchy like breadcrumbs"),
+    '#description' => t('By default Piwik tracks the current page title and shows you a flat list of the most popular titles. This enables a breadcrumbs like tree view.'),
+    '#default_value' => variable_get('piwik_page_title_hierarchy', FALSE),
+  );
+  $form['page_title_hierarchy']['piwik_page_title_hierarchy_exclude_home'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Hide home page from hierarchy'),
+    '#description' => t('If enabled, the "Home" item will be removed from the hierarchy to flatten the structure in the Piwik statistics. Hits to the home page will still be counted, but for other pages the hierarchy will start at level Home+1.'),
+    '#default_value' => variable_get('piwik_page_title_hierarchy_exclude_home', TRUE),
+  );
+
   // Advanced feature configurations.
   $form['advanced'] = array(
     '#type' => 'fieldset',
@@ -196,7 +217,7 @@ function piwik_admin_settings_form(&$form_state) {
     '#default_value' => variable_get('piwik_codesnippet_before', ''),
     '#rows' => 5,
     '#wysiwyg' => FALSE,
-    '#description' => t('Code in this textarea will be added <strong>before</strong> piwikTracker.trackPageView().')
+    '#description' => t('Code in this textarea will be added <strong>before</strong> _paq.push(["trackPageView"]).')
   );
   $form['advanced']['codesnippet']['piwik_codesnippet_after'] = array(
     '#type' => 'textarea',
@@ -204,9 +225,10 @@ function piwik_admin_settings_form(&$form_state) {
     '#default_value' => variable_get('piwik_codesnippet_after', ''),
     '#rows' => 5,
     '#wysiwyg' => FALSE,
-    '#description' => t("Code in this textarea will be added <strong>after</strong> piwikTracker.trackPageView(). This is useful if you'd like to track a site in two accounts.")
+    '#description' => t('Code in this textarea will be added <strong>after</strong> _paq.push(["trackPageView"]). This is useful if you\'d like to track a site in two accounts.')
   );
 
+  /* hook_footer() is not able to add code to head. Upgrade to D7 required.
   $form['advanced']['piwik_js_scope'] = array(
     '#type' => 'select',
     '#title' => t('JavaScript scope'),
@@ -216,7 +238,7 @@ function piwik_admin_settings_form(&$form_state) {
       'header' => t('Header'),
     ),
     '#default_value' => variable_get('piwik_js_scope', 'footer'),
-  );
+  ); */
 
   return system_settings_form($form);
 }
@@ -226,14 +248,14 @@ function piwik_admin_settings_form_validate($form, &$form_state) {
     form_set_error('piwik_site_id', t('A valid Piwik site ID is an integer only.'));
   }
 
-  $url = $form_state['values']['piwik_url_http'] .'/piwik.php';
+  $url = $form_state['values']['piwik_url_http'] .'piwik.php';
   $result = drupal_http_request($url);
   if ($result->code != 200) {
     form_set_error('piwik_url_http', t('The validation of "@url" failed with error "@error" (HTTP code @code).', array('@url' => check_url($url), '@error' => $result->error, '@code' => $result->code)));
   }
 
   if (!empty($form_state['values']['piwik_url_https'])) {
-    $url = $form_state['values']['piwik_url_https'] .'/piwik.php';
+    $url = $form_state['values']['piwik_url_https'] .'piwik.php';
     $result = drupal_http_request($url);
     if ($result->code != 200) {
       form_set_error('piwik_url_https', t('The validation of "@url" failed with error "@error" (HTTP code @code).', array('@url' => check_url($url), '@error' => $result->error, '@code' => $result->code)));

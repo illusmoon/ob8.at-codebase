@@ -1,4 +1,4 @@
-// $Id: README.txt,v 1.1.2.5 2009/05/01 09:29:27 hass Exp $
+// $Id: README.txt,v 1.2.6.2 2011/01/29 23:47:03 hass Exp $
 
 Module: Piwik - Web analytics
 Author: Alexander Hass <www.hass.de>

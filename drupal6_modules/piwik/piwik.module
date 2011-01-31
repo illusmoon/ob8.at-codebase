@@ -1,5 +1,5 @@
 <?php
-// $Id: piwik.module,v 1.1.2.36 2010/10/24 21:17:08 hass Exp $
+// $Id: piwik.module,v 1.3.4.5 2011/01/30 21:03:55 hass Exp $
 
 /**
  * @file
@@ -12,6 +12,9 @@
 
 define('PK_TRACKFILES_EXTENSIONS', '7z|aac|arc|arj|asf|asx|avi|bin|csv|doc|exe|flv|gif|gz|gzip|hqx|jar|jpe?g|js|mp(2|3|4|e?g)|mov(ie)?|msi|msp|pdf|phps|png|ppt|qtm?|ra(m|r)?|sea|sit|tar|tgz|torrent|txt|wav|wma|wmv|wpd|xls|xml|z|zip');
 
+/**
+ * Implementation of hook_help().
+ */
 function piwik_help($path, $arg) {
   switch ($path) {
     case 'admin/settings/piwik':
@@ -19,10 +22,16 @@ function piwik_help($path, $arg) {
   }
 }
 
+/**
+ * Implementation of hook_perm().
+ */
 function piwik_perm() {
   return array('administer piwik', 'opt-in or out of tracking', 'use PHP for tracking visibility');
 }
 
+/**
+ * Implementation of hook_menu().
+ */
 function piwik_menu() {
   $items['admin/settings/piwik'] = array(
     'title' => 'Piwik',
@@ -37,33 +46,6 @@ function piwik_menu() {
   return $items;
 }
 
-function piwik_init() {
-  global $user;
-
-  $id = variable_get('piwik_site_id', '');
-
-  // 1. Check if the piwik account number has a value.
-  // 2. Track page views based on visibility value.
-  // 3. Check if we should track the currently active user's role.
-  if (!empty($id) && _piwik_visibility_pages() && _piwik_visibility_user($user)) {
-
-    $url_http = variable_get('piwik_url_http', '');
-    $url_https = variable_get('piwik_url_https', '');
-    $scope = variable_get('piwik_js_scope', 'footer');
-
-    // Should a local cached copy of piwik.js be used?
-    $script = 'var pkBaseURL = (("https:" == document.location.protocol) ? "'. check_url($url_https) .'" : "'. check_url($url_http) .'");';
-    if (variable_get('piwik_cache', 0) && (variable_get('file_downloads', FILE_DOWNLOADS_PUBLIC) == FILE_DOWNLOADS_PUBLIC) && $url = _piwik_cache($url_http .'/piwik.js')) {
-      drupal_add_js($url, 'module', $scope);
-    }
-    else {
-      $script .= 'document.write(unescape("%3Cscript src=\'" + pkBaseURL + "/piwik.js\' type=\'text/javascript\'%3E%3C/script%3E"));';
-    }
-    drupal_add_js($script, 'inline', $scope);
-
-  }
-}
-
 /**
  * Implementation of hook_footer() to insert Javascript at the end of the page.
  */
@@ -74,8 +56,31 @@ function piwik_footer($main = 0) {
 
   if (!empty($id) && _piwik_visibility_pages() && _piwik_visibility_user($user)) {
 
+    $url_http = variable_get('piwik_url_http', '');
+    $url_https = variable_get('piwik_url_https', '');
+
     $piwik_vars = array();
     $url_custom = '';
+
+    // Piwik can show a tree view of page titles that represents the site structure
+    // if setDocumentTitle() provides the page titles as a "/" delimited list.
+    // This may makes it easier to browse through the statistics of page titles
+    // on larger sites.
+    if (variable_get('piwik_page_title_hierarchy', FALSE) == TRUE) {
+      $titles = _piwik_get_hierarchy_titles();
+
+      if (variable_get('piwik_page_title_hierarchy_exclude_home', TRUE)) {
+        // Remove the "Home" item from the titles to flatten the tree view.
+        array_shift($titles);
+      }
+
+      if (!empty($titles)) {
+        // Encode title, at least to keep "/" intact.
+        $titles = array_map('urlencode', $titles);
+
+        $url_custom = drupal_to_js(implode('/', $titles));
+      }
+    }
 
     // Site search tracking support.
     if (module_exists('search') && variable_get('piwik_site_search', FALSE) && arg(0) == 'search' && $keys = search_get_keys()) {
@@ -110,41 +115,70 @@ function piwik_footer($main = 0) {
     $codesnippet_before = variable_get('piwik_codesnippet_before', '');
     $codesnippet_after = variable_get('piwik_codesnippet_after', '');
 
-    // Build settings code. See http://piwik.org/docs/javascript-tracking/
-    $script = 'try {';
-    $script .= 'var piwikTracker = Piwik.getTracker(pkBaseURL + "/piwik.php", '. drupal_to_js(variable_get('piwik_site_id', '')) .');';
+    // Build tracker code. See http://piwik.org/docs/javascript-tracking/#toc-asynchronous-tracking
+    $script = 'var _paq = _paq || [];';
+    $script .= '(function(){';
+    $script .= 'var u=(("https:" == document.location.protocol) ? "' . check_url($url_https) . '" : "' . check_url($url_http) . '");';
+    $script .= '_paq.push(["setSiteId", ' . drupal_to_js(variable_get('piwik_site_id', '')) . ']);';
+    $script .= '_paq.push(["setTrackerUrl", u+"piwik.php"]);';
 
+    // Custom document titles.
     if (!empty($url_custom)) {
-      $script .= 'piwikTracker.setDocumentTitle('. $url_custom .');';
+      $script .= '_paq.push(["setDocumentTitle", ' . $url_custom . ']);';
     }
 
+    // Custom file download extensions.
     if ((variable_get('piwik_track', 1)) && !(variable_get('piwik_trackfiles_extensions', PK_TRACKFILES_EXTENSIONS) == PK_TRACKFILES_EXTENSIONS)) {
-      $script .= 'piwikTracker.setDownloadExtensions('. drupal_to_js(variable_get('piwik_trackfiles_extensions', PK_TRACKFILES_EXTENSIONS)) .');';
+      $script .= '_paq.push(["setDownloadExtensions", ' . drupal_to_js(variable_get('piwik_trackfiles_extensions', PK_TRACKFILES_EXTENSIONS)) . ']);';
     }
 
     // Add custom variables.
     if (!empty($piwik_vars)) {
       $piwik_vars_fields = array();
       foreach ($piwik_vars as $name => $value) {
-        $piwik_vars_fields[] = drupal_to_js($name) .':'. drupal_to_js($value);
+        $piwik_vars_fields[] = drupal_to_js($name) . ':' . drupal_to_js($value);
       }
       if (count($piwik_vars_fields) > 0) {
-        $script .= 'piwikTracker.setCustomVars({ '. implode(', ', $piwik_vars_fields) .' });';
+        $script .= '_paq.push(["setCustomVars", {' . implode(', ', $piwik_vars_fields) . '}]);';
       }
     }
     if (!empty($codesnippet_before)) {
       $script .= $codesnippet_before;
     }
-    $script .= 'piwikTracker.trackPageView();';
+
+    $script .= '_paq.push(["trackPageView"]);';
 
     // Add link tracking.
     if (variable_get('piwik_track', 1)) {
-      $script .= 'piwikTracker.enableLinkTracking();';
+      $script .= '_paq.push(["enableLinkTracking"]);';
     }
     if (!empty($codesnippet_after)) {
       $script .= $codesnippet_after;
     }
-    $script .= '} catch(err) {}';
+
+    $script .= 'var d=document,';
+    $script .= 'g=d.createElement("script"),';
+    $script .= 's=d.getElementsByTagName("script")[0];';
+    $script .= 'g.type="text/javascript";';
+    $script .= 'g.defer=true;';
+    $script .= 'g.async=true;';
+
+    // Should a local cached copy of the tracking code be used?
+    if (variable_get('piwik_cache', 0) && (variable_get('file_downloads', FILE_DOWNLOADS_PUBLIC) == FILE_DOWNLOADS_PUBLIC) && $url = _piwik_cache($url_http .'piwik.js')) {
+      // A dummy query-string is added to filenames, to gain control over
+      // browser-caching. The string changes on every update or full cache
+      // flush, forcing browsers to load a new copy of the files, as the
+      // URL changed.
+      $query_string = '?'. substr(variable_get('css_js_query_string', '0'), 0, 1);
+
+      $script .= 'g.src="' . $url . $query_string . '";';
+    }
+    else {
+      $script .= 'g.src=u+"piwik.js";';
+    }
+
+    $script .= 's.parentNode.insertBefore(g,s);';
+    $script .= '})();';
 
     drupal_add_js($script, 'inline', 'footer');
   }
@@ -245,14 +279,14 @@ function _piwik_cache($location, $sync_cached_file = FALSE) {
           watchdog('piwik', 'Locally cached tracking code file has been saved.', array(), WATCHDOG_INFO);
 
           // Return the local JS file path.
-          return $file_destination;
+          return base_path() . $file_destination;
         }
       }
     }
   }
   else {
     // Return the local JS file path.
-    return $file_destination;
+    return base_path() . $file_destination;
   }
 }
 
@@ -344,24 +378,28 @@ function _piwik_visibility_pages() {
   if (!isset($page_match)) {
 
     $visibility = variable_get('piwik_visibility', 0);
-    $pages = variable_get('piwik_pages', '');
+    $setting_pages = variable_get('piwik_pages', '');
 
     // Match path if necessary.
-    if (!empty($pages)) {
+    if (!empty($setting_pages)) {
+      // Convert path to lowercase. This allows comparison of the same path
+      // with different case. Ex: /Page, /page, /PAGE.
+      $pages = drupal_strtolower($setting_pages);
       if ($visibility < 2) {
-        $path = drupal_get_path_alias($_GET['q']);
-        // Compare with the internal and path alias (if any).
+        // Convert the Drupal path to lowercase
+        $path = drupal_strtolower(drupal_get_path_alias($_GET['q']));
+        // Compare the lowercase internal and lowercase path alias (if any).
         $page_match = drupal_match_path($path, $pages);
         if ($path != $_GET['q']) {
           $page_match = $page_match || drupal_match_path($_GET['q'], $pages);
         }
-        // When $visibility has a value of 0, the block is displayed on
+        // When $visibility has a value of 0, the tracking code is displayed on
         // all pages except those listed in $pages. When set to 1, it
         // is displayed only on those pages listed in $pages.
         $page_match = !($visibility xor $page_match);
       }
       else {
-        $page_match = drupal_eval($pages);
+        $page_match = drupal_eval($setting_pages);
       }
     }
     else {
@@ -370,4 +408,53 @@ function _piwik_visibility_pages() {
 
   }
   return $page_match;
+}
+
+/**
+ * Get the page titles trail for the current page.
+ *
+ * Based on menu_get_active_breadcrumb().
+ *
+ * @return array
+ *   All page titles, including current page.
+ */
+function _piwik_get_hierarchy_titles() {
+  $titles = array();
+
+  // No breadcrumb for the front page.
+  if (drupal_is_front_page()) {
+    return $titles;
+  }
+
+  $item = menu_get_item();
+  if (!empty($item['access'])) {
+    $active_trail = menu_get_active_trail();
+
+    // Allow modules to alter the breadcrumb, if possible, as that is much
+    // faster than rebuilding an entirely new active trail.
+    drupal_alter('menu_breadcrumb', $active_trail, $item);
+
+    // Remove the tab root (parent) if the current path links to its parent.
+    // Normally, the tab root link is included in the breadcrumb, as soon as we
+    // are on a local task or any other child link. However, if we are on a
+    // default local task (e.g., node/%/view), then we do not want the tab root
+    // link (e.g., node/%) to appear, as it would be identical to the current
+    // page. Since this behavior also needs to work recursively (i.e., on
+    // default local tasks of default local tasks), and since the last non-task
+    // link in the trail is used as page title (see menu_get_active_title()),
+    // this condition cannot be cleanly integrated into menu_get_active_trail().
+    // menu_get_active_trail() already skips all links that link to their parent
+    // (commonly MENU_DEFAULT_LOCAL_TASK). In order to also hide the parent link
+    // itself, we always remove the last link in the trail, if the current
+    // router item links to its parent.
+    if (($item['type'] & MENU_LINKS_TO_PARENT) == MENU_LINKS_TO_PARENT) {
+      array_pop($active_trail);
+    }
+
+    foreach ($active_trail as $parent) {
+      $titles[] = $parent['title'];
+    }
+  }
+
+  return $titles;
 }
