@@ -1,0 +1,16 @@
+; $Id: mobile_theme.info,v 1.1.2.1.4.2 2011/01/18 04:15:21 robloach Exp $
+name = Mobile Theme
+description = Choose a mobile theme to use when the user is vising on a mobile device.
+core = 7.x
+php = 5
+
+files[] = mobile_theme.module
+
+configure = admin/appearance/settings
+
+; Information added by drupal.org packaging script on January 1, 1970 - 00:00
+version = "7.x-1.1"
+core = "7.x"
+project = "mobile_theme"
+datestamp = "1297135612"
+
