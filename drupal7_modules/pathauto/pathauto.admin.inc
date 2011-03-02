@@ -1,5 +1,5 @@
 <?php
-// $Id: pathauto.admin.inc,v 1.41 2010/07/31 18:53:57 davereid Exp $
+// $Id: pathauto.admin.inc,v 1.46 2011/01/11 19:55:39 davereid Exp $
 
 /**
  * @file
@@ -22,8 +22,6 @@ function pathauto_patterns_form($form, $form_state) {
     $patterndescr = $settings->patterndescr;
     $patterndefault = $settings->patterndefault;
     $groupheader = $settings->groupheader;
-    $supportsfeeds = isset($settings->supportsfeeds) ? $settings->supportsfeeds : NULL;
-    variable_set('pathauto_' . $module . '_supportsfeeds', $supportsfeeds);
 
     $form[$module] = array(
       '#type' => 'fieldset',
@@ -40,9 +38,10 @@ function pathauto_patterns_form($form, $form_state) {
       '#default_value' => variable_get($variable, $patterndefault),
       '#size' => 65,
       '#maxlength' => 1280,
-      '#element_validate' => array('_pathauto_validate_pattern_element'),
-      '#after_build' => array('_pathauto_validate_pattern_element'),
+      '#element_validate' => array('token_element_validate'),
+      '#after_build' => array('token_element_validate'),
       '#token_types' => array($settings->token_type),
+      '#min_tokens' => 1,
       '#parents' => array($variable),
     );
 
@@ -57,9 +56,10 @@ function pathauto_patterns_form($form, $form_state) {
           '#default_value' => variable_get($variable, ''),
           '#size' => 65,
           '#maxlength' => 1280,
-          '#element_validate' => array('_pathauto_validate_pattern_element'),
-          '#after_build' => array('_pathauto_validate_pattern_element'),
+          '#element_validate' => array('token_element_validate'),
+          '#after_build' => array('token_element_validate'),
           '#token_types' => array($settings->token_type),
+          '#min_tokens' => 1,
           '#parents' => array($variable),
         );
       }
@@ -76,21 +76,7 @@ function pathauto_patterns_form($form, $form_state) {
     $form[$module]['token_help']['help'] = array(
       '#theme' => 'token_tree',
       '#token_types' => array($settings->token_type),
-      '#global_types' => FALSE,
     );
-
-    // If the module supports feeds, offer to generate aliases for them
-    if ($supportsfeeds) {
-      $variable = 'pathauto_' . $module . '_applytofeeds';
-      $form[$module][$variable] = array(
-        '#type' => 'textfield',
-        '#title' => t('Internal feed alias text (leave blank to disable)'),
-        '#size' => 65,
-        '#maxlength' => 1280,
-        '#default_value' => variable_get($variable, $supportsfeeds),
-        '#description' => t('The text to use for aliases for RSS feeds. Examples are "0/feed" (used throughout Drupal core) and "feed" (used by some contributed Drupal modules, like Views).'),
-      );
-    }
   }
 
   return system_settings_form($form);
@@ -230,34 +216,6 @@ function pathauto_settings_form($form) {
   }
 
   return system_settings_form($form);
-}
-
-/**
- * Element validation callback for URL alias patterns.
- *
- * This function performs the following validations:
- * - Checks if the pattern has at least one token.
- */
-function _pathauto_validate_pattern_element(&$element, &$form_state) {
-  // Get the current value of the element (since this can be used during both
-  // form display and validation).
-  $value = isset($element['#value']) ? $element['#value'] : $element['#default_value'];
-
-  // Empty patterns need no further validation.
-  if (!drupal_strlen($value)) {
-    return $element;
-  }
-
-  // Check for at least one token.
-  $tokens = token_scan($value);
-  if (empty($tokens)) {
-    form_error($element, t('The %name should contain at least one token to ensure unique URL aliases are created.', array('%name' => $element['#title'])));
-  }
-  else {
-    token_element_validate_token_context($element, $form_state);
-  }
-
-  return $element;
 }
 
 /**
@@ -468,12 +426,15 @@ function pathauto_admin_delete_submit($form, &$form_state) {
   foreach ($form_state['values'] as $key => $value) {
     if ($value) {
       if ($key === 'all_aliases') {
-        db_query('DELETE FROM {url_alias}');
+        db_delete('url_alias')
+          ->execute();
         drupal_set_message(t('All of your path aliases have been deleted.'));
       }
       $objects = module_invoke_all('path_alias_types');
       if (array_key_exists($key, $objects)) {
-        db_query("DELETE FROM {url_alias} WHERE source LIKE :src", array(':src' => "$key%"));
+        db_delete('url_alias')
+          ->condition('source', db_like($key) . '%', 'LIKE')
+          ->execute();
         drupal_set_message(t('All of your %type path aliases have been deleted.', array('%type' => $objects[$key])));
       }
     }

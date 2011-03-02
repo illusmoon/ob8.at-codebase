@@ -1,5 +1,5 @@
 <?php
-// $Id: pathauto.inc,v 1.91 2010/08/10 23:03:09 davereid Exp $
+// $Id: pathauto.inc,v 1.95 2011/01/11 19:55:39 davereid Exp $
 
 /**
  * @file
@@ -7,7 +7,8 @@
  *
  * This also contains some constants giving human readable names to some numeric
  * settings; they're included here as they're only rarely used outside this file
- * anyway. Use _pathauto_include() if the constants need to be available.
+ * anyway. Use module_load_include('inc', 'pathauto') if the constants need to
+ * be available.
  *
  * @ingroup pathauto
  */
@@ -72,7 +73,7 @@ define('PATHAUTO_PUNCTUATION_DO_NOTHING', 2);
  *   TRUE if an alias exists, FALSE if not.
  */
 function _pathauto_alias_exists($alias, $source, $language = LANGUAGE_NONE) {
-  $pid = db_query_range("SELECT pid, alias FROM {url_alias} WHERE source <> :source AND alias = :alias AND language IN (:language, :language_none) ORDER BY language DESC, pid DESC", 0, 1, array(
+  $pid = db_query_range("SELECT pid FROM {url_alias} WHERE source <> :source AND alias = :alias AND language IN (:language, :language_none) ORDER BY language DESC, pid DESC", 0, 1, array(
     ':source' => $source,
     ':alias' => $alias,
     ':language' => $language,
@@ -328,7 +329,8 @@ function pathauto_create_alias($module, $op, $source, $data, $type = NULL, $lang
     'sanitize' => FALSE,
     'clear' => TRUE,
     'callback' => 'pathauto_clean_token_values',
-    'language' => (object) array('language' => $language)
+    'language' => (object) array('language' => $language),
+    'pathauto' => TRUE,
   ));
 
   // Check if the token replacement has not actually replaced any values. If
@@ -390,27 +392,8 @@ function pathauto_create_alias($module, $op, $source, $data, $type = NULL, $lang
     'alias' => $alias,
     'language' => $language,
   );
-  _pathauto_set_alias($path, $existing_alias, $op);
-
-  // Also create a related feed alias if requested and supported.
-  $feedappend = trim(variable_get('pathauto_' . $module . '_applytofeeds', ''));
-  if (drupal_strlen($feedappend)) {
-    // For forums and taxonomies, the source doesn't always form the base of the RSS feed (i.e. image galleries)
-    if (($module == 'taxonomy' || $module == 'forum') && !empty($data['term'])) {
-      $source = 'taxonomy/term/' . $data['term']->tid;
-    }
-
-    // Build the feed path alias array and send it off to be created.
-    $path = array(
-      'source' => "$source/$feedappend",
-      'alias' => "$alias/feed",
-      'language' => $language,
-    );
-    $existing_alias = _pathauto_existing_alias_data($path['source'], $path['language']);
-    _pathauto_set_alias($path, $existing_alias, $op);
-  }
-
-  return $alias;
+  $path = _pathauto_set_alias($path, $existing_alias, $op);
+  return $path;
 }
 
 /**
@@ -570,6 +553,7 @@ function pathauto_clean_token_values(&$replacements, $data = array(), $options =
     if (!preg_match('/(path|alias|url|url-brief)\]$/', $token)) {
       $replacements[$token] = pathauto_cleanstring($value);
     }
+    // @todo Clean up 'tree-style' tokens that are not actually URLs.
   }
 }
 
