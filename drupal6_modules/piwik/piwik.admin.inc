@@ -1,5 +1,4 @@
 <?php
-// $Id: piwik.admin.inc,v 1.3.4.5 2011/01/30 21:30:44 hass Exp $
 
 /**
  * @file
@@ -43,6 +42,105 @@ function piwik_admin_settings_form(&$form_state) {
     '#description' => t('The URL to your Piwik base directory with SSL certificate installed. Required if you track a SSL enabled website. Example: "https://www.example.com/piwik/".'),
   );
 
+  $form['domain_tracking'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Domains'),
+  	'#collapsible' => TRUE,
+  );
+
+  global $cookie_domain;
+  $multiple_sub_domains = array();
+  foreach (array('www', 'app', 'shop') as $subdomain) {
+    if (count(explode('.', $cookie_domain)) > 2 && !is_numeric(str_replace('.', '', $cookie_domain))) {
+      $multiple_sub_domains[] = $subdomain . $cookie_domain;
+    }
+    // IP addresses or localhost.
+    else {
+      $multiple_sub_domains[] = $subdomain . '.example.com';
+    }
+  }
+
+  $form['domain_tracking']['piwik_domain_mode'] = array(
+    '#type' => 'radios',
+    '#title' => t('What are you tracking?'),
+    '#options' => array(
+      0 => t('A single domain (default)') . '<div class="description">' . t('Domain: @domain', array('@domain' => $_SERVER['HTTP_HOST'])) . '</div>',
+      1 => t('One domain with multiple subdomains') . '<div class="description">' . t('Examples: @domains', array('@domains' => implode(', ', $multiple_sub_domains))) . '</div>',
+    ),
+    '#default_value' => variable_get('piwik_domain_mode', 0),
+  );
+
+  // Page specific visibility configurations.
+  $form['page_vis_settings'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Page specific tracking settings'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );
+
+  $access = user_access('use PHP for tracking visibility');
+  $visibility = variable_get('piwik_visibility_pages', 0);
+  $pages = variable_get('piwik_pages', '');
+
+  if ($visibility == 2 && !$access) {
+    $form['page_vis_settings'] = array();
+    $form['page_vis_settings']['visibility'] = array('#type' => 'value', '#value' => 2);
+    $form['page_vis_settings']['pages'] = array('#type' => 'value', '#value' => $pages);
+  }
+  else {
+    $options = array(t('Add to every page except the listed pages.'), t('Add to the listed pages only.'));
+    $description = t("Enter one page per line as Drupal paths. The '*' character is a wildcard. Example paths are %blog for the blog page and %blog-wildcard for every personal blog. %front is the front page.", array('%blog' => 'blog', '%blog-wildcard' => 'blog/*', '%front' => '<front>'));
+
+    if ($access) {
+      $options[] = t('Add if the following PHP code returns <code>TRUE</code> (PHP-mode, experts only).');
+      $description .= ' '. t('If the PHP-mode is chosen, enter PHP code between %php. Note that executing incorrect PHP-code can break your Drupal site.', array('%php' => '<?php ?>'));
+    }
+    $form['page_vis_settings']['piwik_visibility_pages'] = array(
+      '#type' => 'radios',
+      '#title' => t('Add tracking to specific pages'),
+      '#options' => $options,
+      '#default_value' => $visibility,
+    );
+    $form['page_vis_settings']['piwik_pages'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Pages'),
+      '#default_value' => $pages,
+      '#description' => $description,
+      '#wysiwyg' => FALSE,
+      '#rows' => 10,
+    );
+  }
+
+  // Render the role overview.
+  $form['role_vis_settings'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Role specific tracking settings'),
+    '#collapsible' => TRUE,
+  );
+
+  $form['role_vis_settings']['piwik_visibility_roles'] = array(
+    '#type' => 'radios',
+    '#title' => t('Add tracking for specific roles'),
+    '#options' => array(
+      t('Add to the selected roles only'),
+      t('Add to every role except the selected ones'),
+    ),
+    '#default_value' => variable_get('piwik_visibility_roles', 0),
+  );
+
+  $roles = user_roles();
+  $role_options = array();
+  foreach ($roles as $rid => $name) {
+    $role_options[$rid] = $name;
+  }
+  $form['role_vis_settings']['piwik_roles'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Roles'),
+    '#default_value' => variable_get('piwik_roles', array()),
+    '#options' => $role_options,
+    '#description' => t('If none of the roles are selected, all users will be tracked. If a user has any of the roles checked, that user will be tracked (or excluded, depending on the setting above).'),
+  );
+
   // Standard tracking configurations.
   $form['user_vis_settings'] = array(
     '#type' => 'fieldset',
@@ -60,66 +158,6 @@ function piwik_admin_settings_form(&$form_state) {
     '#description' => t('Allow individual users to customize the visibility of tracking in their account settings. Only users with %permission permission are allowed to set their own preference.', array('%permission' => t('opt-in or out of tracking'))),
     '#default_value' => variable_get('piwik_custom', 0),
   );
-
-  // Render the role overview.
-  $form['role_vis_settings'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Role specific tracking settings'),
-    '#collapsible' => TRUE,
-  );
-
-  $roles = user_roles();
-  $role_options = array();
-  foreach ($roles as $rid => $name) {
-    $role_options[$rid] = $name;
-  }
-  $form['role_vis_settings']['piwik_roles'] = array(
-    '#type' => 'checkboxes',
-    '#title' => t('Add tracking for specific roles'),
-    '#default_value' => variable_get('piwik_roles', array()),
-    '#options' => $role_options,
-    '#description' => t('Add tracking only for the selected role(s). If none of the roles are selected, all users will be tracked. If a user has any of the roles checked, that user will be tracked.'),
-  );
-
-  // Page specific visibility configurations.
-  $form['page_vis_settings'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Page specific tracking settings'),
-    '#collapsible' => TRUE,
-    '#collapsed' => TRUE,
-  );
-
-  $access = user_access('use PHP for tracking visibility');
-  $visibility = variable_get('piwik_visibility', 0);
-  $pages = variable_get('piwik_pages', '');
-
-  if ($visibility == 2 && !$access) {
-    $form['page_vis_settings'] = array();
-    $form['page_vis_settings']['visibility'] = array('#type' => 'value', '#value' => 2);
-    $form['page_vis_settings']['pages'] = array('#type' => 'value', '#value' => $pages);
-  }
-  else {
-    $options = array(t('Add to every page except the listed pages.'), t('Add to the listed pages only.'));
-    $description = t("Enter one page per line as Drupal paths. The '*' character is a wildcard. Example paths are %blog for the blog page and %blog-wildcard for every personal blog. %front is the front page.", array('%blog' => 'blog', '%blog-wildcard' => 'blog/*', '%front' => '<front>'));
-
-    if ($access) {
-      $options[] = t('Add if the following PHP code returns <code>TRUE</code> (PHP-mode, experts only).');
-      $description .= ' '. t('If the PHP-mode is chosen, enter PHP code between %php. Note that executing incorrect PHP-code can break your Drupal site.', array('%php' => '<?php ?>'));
-    }
-    $form['page_vis_settings']['piwik_visibility'] = array(
-      '#type' => 'radios',
-      '#title' => t('Add tracking to specific pages'),
-      '#options' => $options,
-      '#default_value' => $visibility,
-    );
-    $form['page_vis_settings']['piwik_pages'] = array(
-      '#type' => 'textarea',
-      '#title' => t('Pages'),
-      '#default_value' => $pages,
-      '#description' => $description,
-      '#wysiwyg' => FALSE,
-    );
-  }
 
   // Link specific configurations.
   $form['linktracking'] = array(
@@ -140,6 +178,20 @@ function piwik_admin_settings_form(&$form_state) {
     '#default_value' => variable_get('piwik_trackfiles_extensions', PK_TRACKFILES_EXTENSIONS),
     '#description' => t('A pipe separated list of file extensions that should be tracked when clicked with regular expression support. Example: !extensions', array('!extensions' => PK_TRACKFILES_EXTENSIONS)),
     '#maxlength' => 255,
+  );
+
+  // Privacy specific configurations.
+  $form['tracking']['privacy'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Privacy'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+  $form['tracking']['privacy']['piwik_privacy_donottrack'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Universal web tracking opt-out'),
+    '#description' => t('If enabled and your Piwik server receives the <a href="http://donottrack.us/">Do-Not-Track</a> header from the client browser, the Piwik server will not track the user. Compliance with Do Not Track could be purely voluntary, enforced by industry self-regulation, or mandated by state or federal law. Please accept your visitors privacy. If they have opt-out from tracking and advertising, you should accept their personal decision.'),
+    '#default_value' => variable_get('piwik_privacy_donottrack', 1),
   );
 
   // Piwik page title tree view settings.
@@ -198,8 +250,8 @@ function piwik_admin_settings_form(&$form_state) {
 
   $form['advanced']['piwik_site_search'] = array(
     '#type' => 'checkbox',
-    '#title' => t('Track internal search') . ' (EXPERIMENTAL)',
-    '#description' => t('If checked, internal search keywords are tracked. You must manually install and configure the Site Search plugin for your sites. For the setting <em>Search URL</em> use a value of <strong>search</strong> and for <em>Search Parameter</em> use a value of <strong>query</strong>. For more information see <a href="@url">SiteSearch plugin for piwik</a>.', array('@url' => 'http://github.com/BeezyT/piwik-sitesearch/wiki')) . $site_search_dependencies,
+    '#title' => t('Track internal search'),
+    '#description' => t('If checked, internal search keywords are tracked. You must manually install and configure the SiteSearch plugin for your sites. For the setting <em>Search URL</em> use a value of <strong>/search</strong> and for <em>Search Parameter</em> use a value of <strong>query</strong>. For more information see <a href="@url">SiteSearch plugin for piwik</a>.', array('@url' => 'http://github.com/BeezyT/piwik-sitesearch/wiki')) . $site_search_dependencies,
     '#default_value' => variable_get('piwik_site_search', FALSE),
     '#disabled' => (module_exists('search') ? FALSE : TRUE),
   );

@@ -1,5 +1,4 @@
 <?php
-// $Id: piwik.module,v 1.3.4.5 2011/01/30 21:03:55 hass Exp $
 
 /**
  * @file
@@ -59,8 +58,9 @@ function piwik_footer($main = 0) {
     $url_http = variable_get('piwik_url_http', '');
     $url_https = variable_get('piwik_url_https', '');
 
-    $piwik_vars = array();
-    $url_custom = '';
+    $set_custom_url = '';
+    $set_document_title = '';
+    $set_custom_data = array();
 
     // Piwik can show a tree view of page titles that represents the site structure
     // if setDocumentTitle() provides the page titles as a "/" delimited list.
@@ -78,13 +78,17 @@ function piwik_footer($main = 0) {
         // Encode title, at least to keep "/" intact.
         $titles = array_map('urlencode', $titles);
 
-        $url_custom = drupal_to_js(implode('/', $titles));
+        $set_document_title = drupal_to_js(implode('/', $titles));
       }
     }
 
     // Site search tracking support.
     if (module_exists('search') && variable_get('piwik_site_search', FALSE) && arg(0) == 'search' && $keys = search_get_keys()) {
-      $url_custom = drupal_to_js(url('search', array('query' => 'query='. $keys)));
+      $set_custom_url = drupal_to_js(url('search', array('query' => 'query='. drupal_urlencode($keys), 'absolute' => TRUE)));
+
+      // hook_preprocess_search_results() is not executed if search result is
+      // empty. Make sure the counter is set to 0 if there are no results.
+      $set_custom_data[] = '{SiteSearch_Results: (window.piwik_search_results) ? window.piwik_search_results : 0 }';
     }
 
     // If this node is a translation of another node, pass the original
@@ -96,7 +100,7 @@ function piwik_footer($main = 0) {
       if ($node && translation_supported_type($node->type) && isset($node->tnid) && ($node->tnid != $node->nid)) {
         $source_node = node_load($node->tnid);
         $languages = language_list();
-        $url_custom = drupal_to_js(url('node/'. $source_node->nid, array('language' => $languages[$source_node->language])));
+        $set_custom_url = drupal_to_js(url('node/'. $source_node->nid, array('language' => $languages[$source_node->language], 'absolute' => TRUE)));
       }
     }
 
@@ -104,10 +108,10 @@ function piwik_footer($main = 0) {
     if (function_exists('drupal_get_headers')) {
       $headers = drupal_get_headers();
       if (strstr($headers, '403 Forbidden')) {
-        $url_custom = '"403/URL = " + encodeURIComponent(document.location.pathname + document.location.search) + "/From=" + encodeURIComponent(document.referrer)';
+        $set_document_title = '"403/URL = " + String(document.location.pathname + document.location.search).replace(///g,"%2f") + "/From = " + String(document.referrer).replace(///g,"%2f")';
       }
       elseif (strstr($headers, '404 Not Found')) {
-        $url_custom = '"404/URL = " + encodeURIComponent(document.location.pathname + document.location.search) + "/From=" + encodeURIComponent(document.referrer)';
+        $set_document_title = '"404/URL = " + String(document.location.pathname + document.location.search).replace(///g,"%2f") + "/From = " + String(document.referrer).replace(///g,"%2f")';
       }
     }
 
@@ -122,9 +126,19 @@ function piwik_footer($main = 0) {
     $script .= '_paq.push(["setSiteId", ' . drupal_to_js(variable_get('piwik_site_id', '')) . ']);';
     $script .= '_paq.push(["setTrackerUrl", u+"piwik.php"]);';
 
-    // Custom document titles.
-    if (!empty($url_custom)) {
-      $script .= '_paq.push(["setDocumentTitle", ' . $url_custom . ']);';
+    // Set custom data.
+    if (!empty($set_custom_data)) {
+      foreach ($set_custom_data as $custom_data) {
+        $script .= '_paq.push(["setCustomData", ' . $custom_data . ']);';
+      }
+    }
+    // Set custom url.
+    if (!empty($set_custom_url)) {
+      $script .= '_paq.push(["setCustomUrl", ' . $set_custom_url . ']);';
+    }
+    // Set custom document title.
+    if (!empty($set_document_title)) {
+      $script .= '_paq.push(["setDocumentTitle", ' . $set_document_title . ']);';
     }
 
     // Custom file download extensions.
@@ -132,16 +146,21 @@ function piwik_footer($main = 0) {
       $script .= '_paq.push(["setDownloadExtensions", ' . drupal_to_js(variable_get('piwik_trackfiles_extensions', PK_TRACKFILES_EXTENSIONS)) . ']);';
     }
 
-    // Add custom variables.
-    if (!empty($piwik_vars)) {
-      $piwik_vars_fields = array();
-      foreach ($piwik_vars as $name => $value) {
-        $piwik_vars_fields[] = drupal_to_js($name) . ':' . drupal_to_js($value);
-      }
-      if (count($piwik_vars_fields) > 0) {
-        $script .= '_paq.push(["setCustomVars", {' . implode(', ', $piwik_vars_fields) . '}]);';
-      }
+    // Disable tracking for visitors who have opted out from tracking via DNT (Do-Not-Track) header.
+    if (variable_get('piwik_privacy_donottrack', 1)) {
+      $script .= '_paq.push(["setDoNotTrack", 1]);';
     }
+
+    // Domain tracking type.
+    global $cookie_domain;
+    $domain_mode = variable_get('piwik_domain_mode', 0);
+
+    // Per RFC 2109, cookie domains must contain at least one dot other than the
+    // first. For hosts such as 'localhost' or IP Addresses we don't set a cookie domain.
+    if ($domain_mode == 1 && count(explode('.', $cookie_domain)) > 2 && !is_numeric(str_replace('.', '', $cookie_domain))) {
+      $script .= '_paq.push(["setCookieDomain", ' . drupal_to_js($cookie_domain) . ']);';
+    }
+
     if (!empty($codesnippet_before)) {
       $script .= $codesnippet_before;
     }
@@ -215,7 +234,7 @@ function piwik_user($type, $edit, &$account, $category = NULL) {
           '#type' => 'checkbox',
           '#title' => t('Enable user tracking'),
           '#description' => $description,
-          '#default_value' => isset($account->piwik['custom']) ? $account->piwik['custom'] : ($custom == 1)
+          '#default_value' => isset($account->piwik['custom']) ? $account->piwik['custom'] : ($custom == 1),
         );
 
         return $form;
@@ -234,6 +253,20 @@ function piwik_cron() {
     _piwik_cache(variable_get('piwik_url_http', '') . '/piwik.js', TRUE);
     variable_set('piwik_last_cache', time());
   }
+}
+
+/**
+ * Implementation of hook_preprocess_search_results().
+ *
+ * Collects the number of search results. It need to be noted, that this
+ * function is not executed if the search result is empty.
+ */
+function piwik_preprocess_search_results(&$variables) {
+  // There is no search result $variable available that hold the number of items
+  // found. But the pager item mumber can tell the number of search results.
+  global $pager_total_items;
+
+  drupal_add_js('window.piwik_search_results = ' . intval($pager_total_items[0]) . ';', 'inline', 'header');
 }
 
 /**
@@ -345,22 +378,23 @@ function _piwik_visibility_user($account) {
  */
 function _piwik_visibility_roles($account) {
 
-  $enabled = FALSE;
+  $visibility = variable_get('piwik_visibility_roles', 0);
+  $enabled = $visibility;
   $roles = variable_get('piwik_roles', array());
 
   if (array_sum($roles) > 0) {
-    // One or more roles are selected for tracking.
+    // One or more roles are selected.
     foreach (array_keys($account->roles) as $rid) {
-      // Is the current user a member of one role enabled for tracking?
+      // Is the current user a member of one of these roles?
       if (isset($roles[$rid]) && $rid == $roles[$rid]) {
-        // Current user is a member of a role that should be tracked.
-        $enabled = TRUE;
+        // Current user is a member of a role that should be tracked/excluded from tracking.
+        $enabled = !$visibility;
         break;
       }
     }
   }
   else {
-    // No role is selected for tracking, therefor all roles should be tracked.
+    // No role is selected for tracking, therefore all roles should be tracked.
     $enabled = TRUE;
   }
 
@@ -377,7 +411,7 @@ function _piwik_visibility_pages() {
   // Cache visibility setting in hook_init for hook_footer.
   if (!isset($page_match)) {
 
-    $visibility = variable_get('piwik_visibility', 0);
+    $visibility = variable_get('piwik_visibility_pages', 0);
     $setting_pages = variable_get('piwik_pages', '');
 
     // Match path if necessary.
