@@ -1,0 +1,10 @@
+February 20th, 2011
+ - Initial conversion to Drupal 7, using Coder module.
+
+April 11th, 2011
+ - support.install
+    o Cleanup install variables
+
+April 18th, 2011
+ - Issue #589552: mega-cleanup porting support module to Drupal 7 by
+   javier.alejandro.castro

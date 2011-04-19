@@ -1,0 +1,13 @@
+name = Support
+package = Support
+description = A simple helpdesk and support ticketing system.
+dependencies[] = comment
+dependencies[] = file
+core = 7.x
+
+; Information added by drupal.org packaging script on 2011-04-19
+version = "7.x-1.x-dev"
+core = "7.x"
+project = "support"
+datestamp = "1303173578"
+
