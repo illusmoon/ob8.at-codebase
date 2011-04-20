@@ -181,7 +181,7 @@ function imagefield_widget_settings_validate($widget) {
   // Check that only web images are specified in the callback.
   $extensions = array_filter(explode(' ', $widget['file_extensions']));
   $web_extensions = array('jpg', 'jpeg', 'gif', 'png');
-  if (count(array_diff($extensions, $web_extensions))) {
+  if (count(array_udiff($extensions, $web_extensions, 'strcasecmp'))) {
     form_set_error('file_extensions', t('Only web-standard images (jpg, gif, and png) are supported through the image widget. If needing to upload other types of images, change the widget to use a standard file upload.'));
   }
 
