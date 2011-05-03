@@ -1,5 +1,4 @@
 <?php
-// $Id: imagefield_widget.inc,v 1.46 2010/12/10 18:36:50 quicksketch Exp $
 
 /**
  * @file
@@ -181,7 +180,7 @@ function imagefield_widget_settings_validate($widget) {
   // Check that only web images are specified in the callback.
   $extensions = array_filter(explode(' ', $widget['file_extensions']));
   $web_extensions = array('jpg', 'jpeg', 'gif', 'png');
-  if (count(array_udiff($extensions, $web_extensions, 'strcasecmp'))) {
+  if (count(array_diff($extensions, $web_extensions))) {
     form_set_error('file_extensions', t('Only web-standard images (jpg, gif, and png) are supported through the image widget. If needing to upload other types of images, change the widget to use a standard file upload.'));
   }
 
