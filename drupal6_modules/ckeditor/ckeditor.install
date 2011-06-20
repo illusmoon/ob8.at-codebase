@@ -353,12 +353,12 @@ function _ckeditor_requirements_getinstalledversion() {
  */
 function _ckeditor_requirements_ckfinder_config_check($profile_name) {
   module_load_include('module', 'ckeditor');
-  $module_drupal_path = drupal_get_path('module', 'ckeditor');
-  $config_path = $module_drupal_path .'/ckfinder/config.php';
+  $lib_path = dirname(ckeditor_path(TRUE));
+  $config_path = $lib_path .'/ckfinder/config.php';
 
   if (!file_exists($config_path)) {
     return t('!ckfinder is not installed correctly: !config not found. Make sure that you have uploaded all files or didn\'t remove that file accidentally.', array(
-      '!config' => $module_drupal_path .'/ckfinder/config.php',
+      '!config' => $lib_path .'/ckfinder/config.php',
       '!ckfinder' => '<a href="http://ckfinder.com">CKFinder</a>'
     ));
   }
