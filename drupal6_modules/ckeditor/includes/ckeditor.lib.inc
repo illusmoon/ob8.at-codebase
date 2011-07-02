@@ -270,7 +270,7 @@ function ckeditor_load_plugins() {
   $editor_path = ckeditor_path(TRUE) . '/';
   $ckeditor_path = drupal_get_path('module', 'ckeditor');
   $plugin_dir = $ckeditor_path . '/plugins/';
-  $plugin_dir_additional = ckeditor_plugins_path(TRUE, TRUE) . '/';
+  $plugin_dir_additional = ckeditor_plugins_path(TRUE) . '/';
 
   /*
    * External plugins
