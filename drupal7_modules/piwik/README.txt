@@ -1,4 +1,3 @@
-// $Id: README.txt,v 1.2.8.2 2011/01/29 23:48:24 hass Exp $
 
 Module: Piwik - Web analytics
 Author: Alexander Hass <http://www.hass.de/>
@@ -31,6 +30,26 @@ Simply tick the roles you would like to monitor.
 All pages will now have the required JavaScript added to the
 HTML footer can confirm this by viewing the page source from
 your browser.
+
+
+Custom variables
+=================
+One example for custom variables tracking is the "User roles" tracking. Enter
+the below configuration data into the custom variables settings form under
+admin/config/system/piwik.
+
+Slot: 1
+Name: User roles
+Value: [current-user:piwik-role-names]
+Scope: Visitor
+
+Slot: 1
+Name: User ids
+Value: [current-user:piwik-role-ids]
+Scope: Visitor
+
+More details about custom variables can be found in the Piwik API documentation at
+http://piwik.org/docs/javascript-tracking/#toc-custom-variables.
 
 
 Advanced Settings

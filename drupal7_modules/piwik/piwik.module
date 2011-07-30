@@ -1,5 +1,4 @@
 <?php
-// $Id: piwik.module,v 1.3.6.5 2011/01/30 21:04:58 hass Exp $
 
 /**
  * @file
@@ -20,6 +19,17 @@ function piwik_help($path, $arg) {
     case 'admin/config/system/piwik':
       return t('<a href="@pk_url">Piwik - Web analytics</a> is an open source (GPL license) web analytics software. It gives interesting reports on your website visitors, your popular pages, the search engines keywords they used, the language they speak... and so much more. Piwik aims to be an open source alternative to Google Analytics.', array('@pk_url' => 'http://www.piwik.org/'));
   }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function piwik_theme() {
+  return array(
+    'piwik_admin_custom_var_table' => array(
+      'render element' => 'form',
+    ),
+  );
 }
 
 /**
@@ -83,8 +93,9 @@ function piwik_page_alter(&$page) {
     $url_https = variable_get('piwik_url_https', '');
     $scope = variable_get('piwik_js_scope', 'footer');
 
-    $piwik_vars = array();
-    $url_custom = '';
+    $set_custom_url = '';
+    $set_document_title = '';
+    $set_custom_data = array();
 
     // Piwik can show a tree view of page titles that represents the site structure
     // if setDocumentTitle() provides the page titles as a "/" delimited list.
@@ -102,13 +113,14 @@ function piwik_page_alter(&$page) {
         // Encode title, at least to keep "/" intact.
         $titles = array_map('urlencode', $titles);
 
-        $url_custom = drupal_json_encode(implode('/', $titles));
+        $set_document_title = drupal_json_encode(implode('/', $titles));
       }
     }
 
     // Site search tracking support.
     if (module_exists('search') && variable_get('piwik_site_search', FALSE) && arg(0) == 'search' && $keys = piwik_search_get_keys()) {
-      $url_custom = drupal_json_encode(rawurldecode(url('search', array('query' => array('query' => $keys)))));
+      $set_custom_url = drupal_json_encode(url('search', array('query' => array('query' => $keys), 'absolute' => TRUE)));
+      $set_custom_data[] = '{SiteSearch_Results: (window.piwik_search_results) ? window.piwik_search_results : 0 }';
     }
 
     // If this node is a translation of another node, pass the original
@@ -120,16 +132,51 @@ function piwik_page_alter(&$page) {
       if ($node && translation_supported_type($node->type) && isset($node->tnid) && ($node->tnid != $node->nid)) {
         $source_node = node_load($node->tnid);
         $languages = language_list();
-        $url_custom = drupal_json_encode(url('node/' . $source_node->nid, array('language' => $languages[$source_node->language])));
+        $set_custom_url = drupal_json_encode(url('node/' . $source_node->nid, array('language' => $languages[$source_node->language], 'absolute' => TRUE)));
       }
     }
 
     // Track access denied (403) and file not found (404) pages.
     if ($status == '403 Forbidden') {
-      $url_custom = '"403/URL = " + encodeURIComponent(document.location.pathname + document.location.search) + "/From=" + encodeURIComponent(document.referrer)';
+      $set_document_title = '"403/URL = " + String(document.location.pathname + document.location.search).replace(///g,"%2f") + "/From = " + String(document.referrer).replace(///g,"%2f")';
     }
     elseif ($status == '404 Not Found') {
-      $url_custom = '"404/URL = " + encodeURIComponent(document.location.pathname + document.location.search) + "/From=" + encodeURIComponent(document.referrer)';
+      $set_document_title = '"404/URL = " + String(document.location.pathname + document.location.search).replace(///g,"%2f") + "/From = " + String(document.referrer).replace(///g,"%2f")';
+    }
+
+    // Add custom variables.
+    $piwik_custom_vars = variable_get('piwik_custom_var', array());
+    $custom_variable = '';
+    for ($i = 1; $i < 6; $i++) {
+      $custom_var_name = !empty($piwik_custom_vars['slots'][$i]['name']) ? $piwik_custom_vars['slots'][$i]['name'] : '';
+      if (!empty($custom_var_name)) {
+        $custom_var_value = !empty($piwik_custom_vars['slots'][$i]['value']) ? $piwik_custom_vars['slots'][$i]['value'] : '';
+        $custom_var_scope = !empty($piwik_custom_vars['slots'][$i]['scope']) ? $piwik_custom_vars['slots'][$i]['scope'] : 'visit';
+
+        $types = array();
+        $node = menu_get_object();
+        if (is_object($node)) {
+          $types += array('node' => $node);
+        }
+        $custom_var_value = token_replace($custom_var_value, $types, array('clear' => TRUE));
+
+        // Suppress empty custom variables.
+        if (!is_numeric($custom_var_value) && empty($custom_var_value)) {
+          continue;
+        }
+
+        // Custom variables names and values are limited to 100 characters in
+        // length each. It is recommended to store values that are as small as
+        // possible to ensure that the Piwik Tracking request URL doesn't go
+        // over the URL limit for the webserver or browser.
+        $custom_var_name = rtrim(substr($custom_var_name, 0, 100));
+        $custom_var_value = rtrim(substr($custom_var_value, 0, 100));
+
+        $custom_var_name = drupal_json_encode($custom_var_name);
+        $custom_var_value = drupal_json_encode($custom_var_value);
+        $custom_var_scope = drupal_json_encode($custom_var_scope);
+        $custom_variable .= "_paq.push(['setCustomVariable', $i, $custom_var_name, $custom_var_value, $custom_var_scope]);";
+      }
     }
 
     // Add any custom code snippets if specified.
@@ -143,9 +190,19 @@ function piwik_page_alter(&$page) {
     $script .= '_paq.push(["setSiteId", ' . drupal_json_encode(variable_get('piwik_site_id', '')) . ']);';
     $script .= '_paq.push(["setTrackerUrl", u+"piwik.php"]);';
 
-    // Custom document titles.
-    if (!empty($url_custom)) {
-      $script .= '_paq.push(["setDocumentTitle", ' . $url_custom . ']);';
+    // Set custom data.
+    if (!empty($set_custom_data)) {
+      foreach ($set_custom_data as $custom_data) {
+        $script .= '_paq.push(["setCustomData", ' . $custom_data . ']);';
+      }
+    }
+    // Set custom url.
+    if (!empty($set_custom_url)) {
+      $script .= '_paq.push(["setCustomUrl", ' . $set_custom_url . ']);';
+    }
+    // Set custom document title.
+    if (!empty($set_document_title)) {
+      $script .= '_paq.push(["setDocumentTitle", ' . $set_document_title . ']);';
     }
 
     // Custom file download extensions.
@@ -153,15 +210,25 @@ function piwik_page_alter(&$page) {
       $script .= '_paq.push(["setDownloadExtensions", ' . drupal_json_encode(variable_get('piwik_trackfiles_extensions', PK_TRACKFILES_EXTENSIONS)) . ']);';
     }
 
-    // Add custom variables.
-    if (!empty($piwik_vars)) {
-      $piwik_vars_fields = array();
-      foreach ($piwik_vars as $name => $value) {
-        $piwik_vars_fields[] = drupal_json_encode($name) . ':' . drupal_json_encode($value);
-      }
-      if (count($piwik_vars_fields) > 0) {
-        $script .= '_paq.push(["setCustomVars", {' . implode(', ', $piwik_vars_fields) . '}]);';
-      }
+    // Disable tracking for visitors who have opted out from tracking via DNT (Do-Not-Track) header.
+    if (variable_get('piwik_privacy_donottrack', 1)) {
+      $script .= '_paq.push(["setDoNotTrack", 1]);';
+    }
+
+    // Domain tracking type.
+    global $cookie_domain;
+    $domain_mode = variable_get('piwik_domain_mode', 0);
+
+    // Per RFC 2109, cookie domains must contain at least one dot other than the
+    // first. For hosts such as 'localhost' or IP Addresses we don't set a cookie domain.
+    if ($domain_mode == 1 && count(explode('.', $cookie_domain)) > 2 && !is_numeric(str_replace('.', '', $cookie_domain))) {
+      $script .= '_paq.push(["setCookieDomain", ' . drupal_json_encode($cookie_domain) . ']);';
+    }
+
+    // Ordering $custom_variable before $codesnippet_before allows users to add
+    // custom code snippets that may use deleteCustomVariable() and/or getCustomVariable().
+    if (!empty($custom_variable)) {
+      $script .= $custom_variable;
     }
     if (!empty($codesnippet_before)) {
       $script .= $codesnippet_before;
@@ -263,6 +330,19 @@ function piwik_cron() {
     _piwik_cache(variable_get('piwik_url_http', '') . 'piwik.js', TRUE);
     variable_set('piwik_last_cache', REQUEST_TIME);
   }
+}
+
+/**
+ * Implements hook_preprocess_search_results().
+ *
+ * Collects and adds the number of search results to the head.
+ */
+function piwik_preprocess_search_results(&$variables) {
+  // There is no search result $variable available that hold the number of items
+  // found. But the pager item mumber can tell the number of search results.
+  global $pager_total_items;
+
+  drupal_add_js('window.piwik_search_results = ' . intval($pager_total_items[0]) . ';', array('type' => 'inline', 'group' => JS_LIBRARY-1));
 }
 
 /**
@@ -390,22 +470,23 @@ function _piwik_visibility_user($account) {
  */
 function _piwik_visibility_roles($account) {
 
-  $enabled = FALSE;
+  $visibility = variable_get('piwik_visibility_roles', 0);
+  $enabled = $visibility;
   $roles = variable_get('piwik_roles', array());
 
   if (array_sum($roles) > 0) {
-    // One or more roles are selected for tracking.
+    // One or more roles are selected.
     foreach (array_keys($account->roles) as $rid) {
-      // Is the current user a member of one role enabled for tracking?
+      // Is the current user a member of one of these roles?
       if (isset($roles[$rid]) && $rid == $roles[$rid]) {
-        // Current user is a member of a role that should be tracked.
-        $enabled = TRUE;
+        // Current user is a member of a role that should be tracked/excluded from tracking.
+        $enabled = !$visibility;
         break;
       }
     }
   }
   else {
-    // No role is selected for tracking, therefor all roles should be tracked.
+    // No role is selected for tracking, therefore all roles should be tracked.
     $enabled = TRUE;
   }
 
@@ -422,7 +503,7 @@ function _piwik_visibility_pages() {
   // Cache visibility setting in hook_init for hook_footer.
   if (!isset($page_match)) {
 
-    $visibility = variable_get('piwik_visibility', 0);
+    $visibility = variable_get('piwik_visibility_pages', 0);
     $setting_pages = variable_get('piwik_pages', '');
 
     // Match path if necessary.

@@ -1,5 +1,4 @@
 <?php
-// $Id: piwik.admin.inc,v 1.3.6.7 2011/01/30 21:04:58 hass Exp $
 
 /**
  * @file
@@ -54,41 +53,36 @@ function piwik_admin_settings_form($form_state) {
     ),
   );
 
-  // Standard tracking configurations.
-  $form['tracking']['user_vis_settings'] = array(
+  $form['tracking']['domain_tracking'] = array(
     '#type' => 'fieldset',
-    '#title' => t('Users'),
+    '#title' => t('Domains'),
   );
-  $t_permission = array('%permission' => t('opt-in or out of tracking'));
-  $form['tracking']['user_vis_settings']['piwik_custom'] = array(
+
+  global $cookie_domain;
+  $multiple_sub_domains = array();
+  foreach (array('www', 'app', 'shop') as $subdomain) {
+    if (count(explode('.', $cookie_domain)) > 2 && !is_numeric(str_replace('.', '', $cookie_domain))) {
+      $multiple_sub_domains[] = $subdomain . $cookie_domain;
+    }
+    // IP addresses or localhost.
+    else {
+      $multiple_sub_domains[] = $subdomain . '.example.com';
+    }
+  }
+
+  $form['tracking']['domain_tracking']['piwik_domain_mode'] = array(
     '#type' => 'radios',
-    '#title' => t('Allow users to customize tracking on their account page'),
+    '#title' => t('What are you tracking?'),
     '#options' => array(
-      t('No customization allowed'),
-      t('Tracking on by default, users with %permission permission can opt out', $t_permission),
-      t('Tracking off by default, users with %permission permission can opt in', $t_permission)
+      0 => t('A single domain (default)') . '<div class="description">' . t('Domain: @domain', array('@domain' => $_SERVER['HTTP_HOST'])) . '</div>',
+      1 => t('One domain with multiple subdomains') . '<div class="description">' . t('Examples: @domains', array('@domains' => implode(', ', $multiple_sub_domains))) . '</div>',
     ),
-    '#default_value' => variable_get('piwik_custom', 0),
-  );
-
-  // Render the role overview.
-  $form['tracking']['role_vis_settings'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Roles'),
-  );
-
-  $role_options = array_map('check_plain', user_roles());
-  $form['tracking']['role_vis_settings']['piwik_roles'] = array(
-    '#type' => 'checkboxes',
-    '#title' => t('Add tracking for specific roles'),
-    '#default_value' => variable_get('piwik_roles', array()),
-    '#options' => $role_options,
-    '#description' => t('If none are selected, all users will be tracked. If a user has any of the roles checked, that user will be tracked.'),
+    '#default_value' => variable_get('piwik_domain_mode', 0),
   );
 
   // Page specific visibility configurations.
   $php_access = user_access('use PHP for tracking visibility');
-  $visibility = variable_get('piwik_visibility', 0);
+  $visibility = variable_get('piwik_visibility_pages', 0);
   $pages = variable_get('piwik_pages', '');
 
   $form['tracking']['page_vis_settings'] = array(
@@ -118,7 +112,7 @@ function piwik_admin_settings_form($form_state) {
     else {
       $title = t('Pages');
     }
-    $form['tracking']['page_vis_settings']['piwik_visibility'] = array(
+    $form['tracking']['page_vis_settings']['piwik_visibility_pages'] = array(
       '#type' => 'radios',
       '#title' => t('Add tracking to specific pages'),
       '#options' => $options,
@@ -130,8 +124,51 @@ function piwik_admin_settings_form($form_state) {
       '#title_display' => 'invisible',
       '#default_value' => $pages,
       '#description' => $description,
+      '#rows' => 10,
     );
   }
+
+  // Render the role overview.
+  $form['tracking']['role_vis_settings'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Roles'),
+  );
+
+  $form['tracking']['role_vis_settings']['piwik_visibility_roles'] = array(
+    '#type' => 'radios',
+    '#title' => t('Add tracking for specific roles'),
+    '#options' => array(
+      t('Add to the selected roles only'),
+      t('Add to every role except the selected ones'),
+    ),
+    '#default_value' => variable_get('piwik_visibility_roles', 0),
+  );
+
+  $role_options = array_map('check_plain', user_roles());
+  $form['tracking']['role_vis_settings']['piwik_roles'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Roles'),
+    '#default_value' => variable_get('piwik_roles', array()),
+    '#options' => $role_options,
+    '#description' => t('If none of the roles are selected, all users will be tracked. If a user has any of the roles checked, that user will be tracked (or excluded, depending on the setting above).'),
+  );
+
+  // Standard tracking configurations.
+  $form['tracking']['user_vis_settings'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Users'),
+  );
+  $t_permission = array('%permission' => t('opt-in or out of tracking'));
+  $form['tracking']['user_vis_settings']['piwik_custom'] = array(
+    '#type' => 'radios',
+    '#title' => t('Allow users to customize tracking on their account page'),
+    '#options' => array(
+      t('No customization allowed'),
+      t('Tracking on by default, users with %permission permission can opt out', $t_permission),
+      t('Tracking off by default, users with %permission permission can opt in', $t_permission)
+    ),
+    '#default_value' => variable_get('piwik_custom', 0),
+  );
 
   // Link specific configurations.
   $form['tracking']['linktracking'] = array(
@@ -163,10 +200,22 @@ function piwik_admin_settings_form($form_state) {
 
   $form['tracking']['search']['piwik_site_search'] = array(
     '#type' => 'checkbox',
-    '#title' => t('Track internal search') . ' (EXPERIMENTAL)',
-    '#description' => t('If checked, internal search keywords are tracked. You must manually install and configure the Site Search plugin for your sites. For the setting <em>Search URL</em> use a value of <strong>search</strong> and for <em>Search Parameter</em> use a value of <strong>query</strong>. For more information see <a href="@url">SiteSearch plugin for piwik</a>.', array('@url' => 'http://github.com/BeezyT/piwik-sitesearch/wiki')) . $site_search_dependencies,
+    '#title' => t('Track internal search'),
+    '#description' => t('If checked, internal search keywords are tracked. You must manually install and configure the SiteSearch plugin for your sites. For the setting <em>Search URL</em> use a value of <strong>/search</strong> and for <em>Search Parameter</em> use a value of <strong>query</strong>. For more information see <a href="@url">SiteSearch plugin for piwik</a>.', array('@url' => 'http://github.com/BeezyT/piwik-sitesearch/wiki')) . $site_search_dependencies,
     '#default_value' => variable_get('piwik_site_search', FALSE),
     '#disabled' => (module_exists('search') ? FALSE : TRUE),
+  );
+
+  // Privacy specific configurations.
+  $form['tracking']['privacy'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Privacy'),
+  );
+  $form['tracking']['privacy']['piwik_privacy_donottrack'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Universal web tracking opt-out'),
+    '#description' => t('If enabled and your Piwik server receives the <a href="http://donottrack.us/">Do-Not-Track</a> header from the client browser, the Piwik server will not track the user. Compliance with Do Not Track could be purely voluntary, enforced by industry self-regulation, or mandated by state or federal law. Please accept your visitors privacy. If they have opt-out from tracking and advertising, you should accept their personal decision.'),
+    '#default_value' => variable_get('piwik_privacy_donottrack', 1),
   );
 
   // Piwik page title tree view settings.
@@ -188,6 +237,73 @@ function piwik_admin_settings_form($form_state) {
     '#title' => t('Hide home page from hierarchy'),
     '#description' => t('If enabled, the "Home" item will be removed from the hierarchy to flatten the structure in the Piwik statistics. Hits to the home page will still be counted, but for other pages the hierarchy will start at level Home+1.'),
     '#default_value' => variable_get('piwik_page_title_hierarchy_exclude_home', TRUE),
+  );
+
+  $form['piwik_custom_var'] = array(
+    '#collapsible' => TRUE,
+  	'#collapsed' => TRUE,
+    '#description' => t('You can add Piwiks <a href="!custom_var_documentation">Custom Variables</a> here. These will be added to every page that Piwik tracking code appears on. Custom variables names and values are limited to 100 characters in length each. Keep the names and values as short as possible and expect long values to get trimmed. You may use tokens in custom variable values. Global and user tokens are always available; on node pages, node tokens are also available.', array('!custom_var_documentation' => 'http://piwik.org/docs/custom-variables/')),
+    '#theme' => 'piwik_admin_custom_var_table',
+    '#title' => t('Custom variables'),
+    '#tree' => TRUE,
+    '#type' => 'fieldset',
+  );
+
+  $piwik_custom_vars = variable_get('piwik_custom_var', array());
+
+  // Piwik supports up to 5 custom variables.
+  for ($i = 1; $i < 6; $i++) {
+    $form['piwik_custom_var']['slots'][$i]['slot'] = array(
+      '#default_value' => $i,
+      '#description' => t('Slot number'),
+      '#disabled' => TRUE,
+      '#size' => 1,
+      '#title' => t('Custom variable slot #@slot', array('@slot' => $i)),
+      '#title_display' => 'invisible',
+      '#type' => 'textfield',
+    );
+    $form['piwik_custom_var']['slots'][$i]['name'] = array(
+      '#default_value' => !empty($piwik_custom_vars['slots'][$i]['name']) ? $piwik_custom_vars['slots'][$i]['name'] : '',
+      '#description' => t('The custom variable name.'),
+      '#maxlength' => 100,
+    	'#size' => 20,
+      '#title' => t('Custom variable name #@slot', array('@slot' => $i)),
+      '#title_display' => 'invisible',
+      '#type' => 'textfield',
+    );
+    $form['piwik_custom_var']['slots'][$i]['value'] = array(
+      '#default_value' => !empty($piwik_custom_vars['slots'][$i]['value']) ? $piwik_custom_vars['slots'][$i]['value'] : '',
+      '#description' => t('The custom variable value. You may use tokens in this field.'),
+      '#maxlength' => 255,
+      '#title' => t('Custom variable value #@slot', array('@slot' => $i)),
+      '#title_display' => 'invisible',
+      '#type' => 'textfield',
+      '#element_validate' => array('piwik_token_element_validate'),
+      '#token_types' => array('node'),
+    );
+    if (module_exists('token')) {
+      $form['piwik_custom_var']['slots'][$i]['value']['#element_validate'][] = 'token_element_validate';
+    }
+    $form['piwik_custom_var']['slots'][$i]['scope'] = array(
+      '#default_value' => !empty($piwik_custom_vars['slots'][$i]['scope']) ? $piwik_custom_vars['slots'][$i]['scope'] : 'visit',
+      '#description' => t('The scope for the custom variable.'),
+      '#title' => t('Custom variable slot #@slot', array('@slot' => $i)),
+      '#title_display' => 'invisible',
+      '#type' => 'select',
+      '#options' => array(
+        'visit' => t('Visit'),
+        'page' => t('Page'),
+      ),
+    );
+  }
+
+  $form['piwik_custom_var']['piwik_custom_var_description'] = array(
+    '#type' => 'item',
+    '#description' => t('You can supplement Piwiks\' basic IP address tracking of visitors by segmenting users based on custom variables. Make sure you will not associate (or permit any third party to associate) any data gathered from your websites (or such third parties\' websites) with any personally identifying information from any source as part of your use (or such third parties\' use) of the Piwik\' service.'),
+  );
+  $form['piwik_custom_var']['piwik_custom_var_token_tree'] = array(
+    '#theme' => 'token_tree',
+    '#token_types' => array('node'),
   );
 
   // Advanced feature configurations.
@@ -253,6 +369,22 @@ function piwik_admin_settings_form($form_state) {
 }
 
 function piwik_admin_settings_form_validate($form, &$form_state) {
+  // Custom variables validation.
+  foreach ($form_state['values']['piwik_custom_var']['slots'] as $custom_var) {
+    // Validate empty names/values.
+    if (empty($custom_var['name']) && !empty($custom_var['value'])) {
+      form_set_error("piwik_custom_var][slots][" . $custom_var['slot'] . "][name", t('The custom variable @slot-number requires a <em>Value</em> if a <em>Name</em> has been provided.', array('@slot-number' =>  $custom_var['slot'])));
+    }
+    elseif (!empty($custom_var['name']) && empty($custom_var['value'])) {
+      form_set_error("piwik_custom_var][slots][" . $custom_var['slot'] . "][value", t('The custom variable @slot-number requires a <em>Name</em> if a <em>Value</em> has been provided.', array('@slot-number' =>  $custom_var['slot'])));
+    }
+  }
+
+  // Trim some text area values.
+  $form_state['values']['piwik_pages'] = trim($form_state['values']['piwik_pages']);
+  $form_state['values']['piwik_codesnippet_before'] = trim($form_state['values']['piwik_codesnippet_before']);
+  $form_state['values']['piwik_codesnippet_after'] = trim($form_state['values']['piwik_codesnippet_after']);
+
   if (!preg_match('/^\d{1,}$/', $form_state['values']['piwik_site_id'])) {
     form_set_error('piwik_site_id', t('A valid Piwik site ID is an integer only.'));
   }
@@ -283,9 +415,125 @@ function piwik_admin_settings_form_validate($form, &$form_state) {
   if (preg_match('/(.*)<\/?script(.*)>(.*)/i', $form_state['values']['piwik_codesnippet_after'])) {
     form_set_error('piwik_codesnippet_after', t('Do not include the &lt;script&gt; tags in the javascript code snippets.'));
   }
+}
 
-  // Trim some text area values.
-  $form_state['values']['piwik_pages'] = trim($form_state['values']['piwik_pages']);
-  $form_state['values']['piwik_codesnippet_before'] = trim($form_state['values']['piwik_codesnippet_before']);
-  $form_state['values']['piwik_codesnippet_after'] = trim($form_state['values']['piwik_codesnippet_after']);
+/**
+ * Layout for the custom variables table in the admin settings form.
+ */
+function theme_piwik_admin_custom_var_table($variables) {
+  $form = $variables['form'];
+
+  $header = array(
+    array('data' => t('Slot')),
+    array('data' => t('Name')),
+    array('data' => t('Value')),
+    array('data' => t('Scope')),
+  );
+
+  $rows = array();
+  foreach (element_children($form['slots']) as $key => $id) {
+    $rows[] = array(
+      'data' => array(
+        drupal_render($form['slots'][$id]['slot']),
+        drupal_render($form['slots'][$id]['name']),
+        drupal_render($form['slots'][$id]['value']),
+        drupal_render($form['slots'][$id]['scope']),
+      ),
+    );
+  }
+
+  $output = theme('table', array('header' => $header, 'rows' => $rows));
+  $output .= drupal_render($form['piwik_custom_var_description']);
+  $output .= drupal_render($form['piwik_custom_var_token_tree']);
+
+  return $output;
+}
+
+/**
+ * Validate a form element that should have tokens in it.
+ *
+ * For example:
+ * @code
+ * $form['my_node_text_element'] = array(
+ *   '#type' => 'textfield',
+ *   '#title' => t('Some text to token-ize that has a node context.'),
+ *   '#default_value' => 'The title of this node is [node:title].',
+ *   '#element_validate' => array('piwik_token_element_validate'),
+ * );
+ * @endcode
+ */
+function piwik_token_element_validate(&$element, &$form_state) {
+  $value = isset($element['#value']) ? $element['#value'] : $element['#default_value'];
+
+  if (!drupal_strlen($value)) {
+    // Empty value needs no further validation since the element should depend
+    // on using the '#required' FAPI property.
+    return $element;
+  }
+
+  $tokens = token_scan($value);
+  $invalid_tokens = _piwik_get_forbidden_tokens($tokens);
+  if ($invalid_tokens) {
+    form_error($element, t('The %element-title is using the following forbidden tokens with personal identifying information: @invalid-tokens.', array('%element-title' => $element['#title'], '@invalid-tokens' => implode(', ', $invalid_tokens))));
+  }
+
+  return $element;
+}
+
+function _piwik_get_forbidden_tokens($value) {
+  $invalid_tokens = array();
+  $value_tokens = is_string($value) ? token_scan($value) : $value;
+
+  foreach ($value_tokens as $type => $tokens) {
+    if (array_filter($tokens, '_piwik_contains_forbidden_token')) {
+      $invalid_tokens = array_merge($invalid_tokens, array_values($tokens));
+    }
+  }
+
+  array_unique($invalid_tokens);
+  return $invalid_tokens;
+}
+
+/**
+ * Validate if a string contains forbidden tokens not allowed by privacy rules.
+ *
+ * @param $token_string
+ *   A string with one or more tokens to be validated.
+ * @return boolean
+ *   TRUE if blacklisted token has been found, otherwise FALSE.
+ */
+function _piwik_contains_forbidden_token($token_string) {
+  // List of strings in tokens with personal identifying information not allowed
+  // for privacy reasons. See section 8.1 of the Google Analytics terms of use
+  // for more detailed information.
+  //
+  // This list can never ever be complete. For this reason it tries to use a
+  // regex and may kill a few other valid tokens, but it's the only way to
+  // protect users as much as possible from admins with illegal ideas.
+  //
+  // User tokens are not prefixed with colon to catch 'current-user' and 'user'.
+  //
+  // TODO: If someone have better ideas, share them, please!
+  $token_blacklist = array(
+    ':author]',
+    ':author:edit-url]',
+    ':author:url]',
+    ':author:path]',
+    ':fid]',
+    ':mail]',
+    ':name]',
+    ':uid]',
+    ':one-time-login-url]',
+    ':owner]',
+    ':owner:cancel-url]',
+    ':owner:edit-url]',
+    ':owner:url]',
+    ':owner:path]',
+    'user:cancel-url]',
+    'user:edit-url]',
+    'user:url]',
+    'user:path]',
+  );
+
+  return preg_match('/' . implode('|', array_map('preg_quote', $token_blacklist)) . '/i', $token_string);
 }
