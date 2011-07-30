@@ -1,9 +1,8 @@
 <?php
 
-// $Id: ckeditor.module,v 1.4.2.27.2.18 2011/01/13 14:11:04 dczepierga Exp $
 /**
- * CKEditor - The text editor for Internet - http://ckeditor.com
- * Copyright (c) 2003-2009, CKSource - Frederico Knabben. All rights reserved.
+ * CKEditor - The text editor for the Internet - http://ckeditor.com
+ * Copyright (c) 2003-2011, CKSource - Frederico Knabben. All rights reserved.
  *
  * == BEGIN LICENSE ==
  *
@@ -42,6 +41,8 @@ define('CKEDITOR_ENTERMODE_DIV', 3);
 global $_ckeditor_configuration;
 global $_ckeditor_ids;
 
+require_once('includes/ckeditor.user.inc');
+
 $_ckeditor_configuration = array();
 $_ckeditor_ids = array();
 
@@ -56,6 +57,16 @@ function ckeditor_menu() {
         'description' => 'XSS Filter.',
         'page callback' => 'ckeditor_filter_xss',
         'file' => 'includes/ckeditor.page.inc',
+        'access callback' => TRUE,
+        'type' => MENU_CALLBACK,
+    );
+
+    $items['ckeditor/disable/wysiwyg'] = array(
+        'title' => 'Disable WYSIWYG module',
+        'description' => 'Disable WYSIWYG module.',
+        'page callback' => 'ckeditor_disable_wysiwyg',
+        'file' => 'includes/ckeditor.admin.inc',
+        'access arguments' => array('administer ckeditor'),
         'access callback' => TRUE,
         'type' => MENU_CALLBACK,
     );
@@ -180,9 +191,8 @@ function ckeditor_init() {
  * Implementation of hook_form_alter()
  */
 function ckeditor_form_alter(&$form, $form_state, $form_id) {
+    module_load_include('inc', 'ckeditor', 'includes/ckeditor.user');
     if ( $form_id == 'user_profile_form') {
-        module_load_include('inc', 'ckeditor', 'includes/ckeditor.user');
-
         ckeditor_user_customize($form, $form_state, $form_id);
     }
 }
@@ -206,18 +216,17 @@ function ckeditor_element_info_alter(&$types) {
  */
 function ckeditor_pre_render_text_format($element) {
     static $init = FALSE;
-
     if (!isset($element['#format'])) {
         return $element;
     }
-    
+
     module_load_include('inc', 'ckeditor', 'includes/ckeditor.lib');
     if ( $init === FALSE ) {
         $input_formats = ckeditor_profiles_compile();
-        drupal_add_js(array('ckeditor' => array('input_formats' => $input_formats)), 'setting');
+        drupal_add_js(array('ckeditor' => array('input_formats' => $input_formats, 'plugins' => array())), 'setting');
         $init = TRUE;
     }
-    
+
     if (isset($element['value'])) {
         if (isset($element['summary'])) {
             $element['value'] = ckeditor_load_by_field($element['value'], $element['#format'], TRUE, $element['summary']['#id']);
@@ -270,7 +279,7 @@ function ckeditor_profile_load($name = '', $clear = FALSE) {
                 $profiles[$data->name]->input_formats[$data->format] = $input_formats[$data->format]->name;
             }
         }
-        
+
     }
 
     return ($name ? (isset($profiles[urldecode($name)]) ? $profiles[urldecode($name)] : FALSE) : $profiles);
@@ -292,7 +301,7 @@ function ckeditor_path($local = FALSE, $refresh = FALSE) {
 
         //default: path to ckeditor subdirectory in the ckeditor module directory (starting from the document root)
         //e.g. for http://example.com/drupal it will be /drupal/sites/all/modules/ckeditor/ckeditor
-        $cke_path = base_path() . $mod_path . '/ckeditor';
+        $cke_path = $mod_path . '/ckeditor';
 
         //default: path to ckeditor subdirectory in the ckeditor module directory (relative to index.php)
         //e.g.: sites/all/modules/ckeditor/ckeditor
@@ -303,7 +312,7 @@ function ckeditor_path($local = FALSE, $refresh = FALSE) {
 
             if (isset($gs['ckeditor_path'])) {
                 $tmp_path = $gs['ckeditor_path'];
-                $tmp_path = strtr($tmp_path, array("%b" => base_path(), "%m" => base_path() . $mod_path));
+                $tmp_path = strtr($tmp_path, array("%m" => $mod_path, "%l" => 'sites/all/libraries'));
                 $tmp_path = str_replace('\\', '/', $tmp_path);
                 $tmp_path = str_replace('//', '/', $tmp_path);
                 $cke_path = $tmp_path;
@@ -313,8 +322,8 @@ function ckeditor_path($local = FALSE, $refresh = FALSE) {
                     if (FALSE !== strpos($gs['ckeditor_path'], "%m")) {
                         $gs['ckeditor_local_path'] = strtr($gs['ckeditor_path'], array("%m" => $mod_path));
                     }
-                    if (FALSE !== strpos($gs['ckeditor_path'], "%b")) {
-                        $gs['ckeditor_local_path'] = strtr($gs['ckeditor_path'], array("%b" => "."));
+                    if (FALSE !== strpos($gs['ckeditor_path'], "%l")) {
+                        $gs['ckeditor_local_path'] = strtr($gs['ckeditor_path'], array("%l" => 'sites/all/libraries'));
                     }
                 }
             }

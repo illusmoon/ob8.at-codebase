@@ -1,9 +1,8 @@
 <?php
 
-// $Id: ckeditor.install,v 1.2.2.9.2.15 2011/01/11 10:44:10 dczepierga Exp $
 /*
- * CKEditor - The text editor for Internet - http://ckeditor.com
- * Copyright (C) 2003-2008 Frederico Caldeira Knabben
+ * CKEditor - The text editor for the Internet - http://ckeditor.com
+ * Copyright (c) 2003-2011, CKSource - Frederico Knabben. All rights reserved.
  *
  * == BEGIN LICENSE ==
  *
@@ -69,7 +68,7 @@ function ckeditor_install() {
     ['Source'],
     ['Cut','Copy','Paste','PasteText','PasteFromWord','-','SpellChecker', 'Scayt'],
     ['Undo','Redo','Find','Replace','-','SelectAll','RemoveFormat'],
-    ['Image','Flash','Table','HorizontalRule','Smiley','SpecialChar'],
+    ['Image','Media','Flash','Table','HorizontalRule','Smiley','SpecialChar'],
     ['Maximize', 'ShowBlocks'],
     '/',
     ['Format'],
@@ -114,7 +113,7 @@ function ckeditor_install() {
     ['Source'],
     ['Cut','Copy','Paste','PasteText','PasteFromWord','-','SpellChecker', 'Scayt'],
     ['Undo','Redo','Find','Replace','-','SelectAll','RemoveFormat'],
-    ['Image','Flash','Table','HorizontalRule','Smiley','SpecialChar'],
+    ['Image','Media','Flash','Table','HorizontalRule','Smiley','SpecialChar'],
     '/',
     ['Bold','Italic','Underline','Strike','-','Subscript','Superscript'],
     ['NumberedList','BulletedList','-','Outdent','Indent','Blockquote'],
@@ -447,4 +446,29 @@ function ckeditor_update_7001() {
                     ))
                     ->condition('name', 'Advanced', '=')
                     ->execute();
+}
+
+/**
+ * Rewrite 'Path to CKEditor' to new flags
+ */
+function ckeditor_update_7002() {
+    $result = db_query("SELECT settings FROM {ckeditor_settings} WHERE name = :name", array(':name' => 'CKEditor Global Profile'))->fetchField();
+    $settings = unserialize($result);
+    if ($settings['ckeditor_path'] == '%b/sites/all/libraries/ckeditor'){
+        $settings['ckeditor_path'] = '%l/ckeditor';
+    }
+    else {
+        $settings['ckeditor_path'] = str_replace('%b/', '', $settings['ckeditor_path']);
+        $settings['ckeditor_path'] = str_replace('%b', '', $settings['ckeditor_path']);
+    }
+
+    $settings = serialize($settings);
+
+    $update = db_update('ckeditor_settings')
+                    ->fields(array(
+                        'settings' => $settings,
+                    ))
+                    ->condition('name', 'CKEditor Global Profile', '=')
+                    ->execute();
+
 }

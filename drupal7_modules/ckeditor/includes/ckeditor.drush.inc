@@ -1,8 +1,24 @@
 <?php
-
-// $Id: ckeditor.drush.inc,v 1.1.2.2.2.1 2010/10/26 12:07:11 dczepierga Exp $
-
 /**
+ * CKEditor - The text editor for the Internet - http://ckeditor.com
+ * Copyright (c) 2003-2011, CKSource - Frederico Knabben. All rights reserved.
+ *
+ * == BEGIN LICENSE ==
+ *
+ * Licensed under the terms of any of the following licenses at your
+ * choice:
+ *
+ *  - GNU General Public License Version 2 or later (the "GPL")
+ *    http://www.gnu.org/licenses/gpl.html
+ *
+ *  - GNU Lesser General Public License Version 2.1 or later (the "LGPL")
+ *    http://www.gnu.org/licenses/lgpl.html
+ *
+ *  - Mozilla Public License Version 1.1 or later (the "MPL")
+ *    http://www.mozilla.org/MPL/MPL-1.1.html
+ *
+ * == END LICENSE ==
+ *
  * @file
  * Drush integration for the ckeditor module.
  */
@@ -13,7 +29,7 @@
 function ckeditor_drush_command() {
     $items['ckeditor-download'] = array(
         'callback' => 'ckeditor_drush_download',
-        'description' => dt('Downloads the required CKEditor library from svn.fckeditor.net.'),
+        'description' => dt('Downloads the required CKEditor library from svn.ckeditor.com.'),
         'arguments' => array(
             'path' => dt('Optional. A path to the download folder. If omitted Drush will use the default location (sites/all/libraries/ckeditor).'),
         ),
@@ -33,7 +49,7 @@ function ckeditor_drush_download() {
         $path = drush_get_context('DRUSH_DRUPAL_ROOT') . '/sites/all/libraries/ckeditor';
     }
 
-    if (drush_shell_exec('svn checkout http://http://svn.ckeditor.com/CKEditor/releases/stable/ ' . $path)) {
+    if (drush_shell_exec('svn checkout http://svn.ckeditor.com/CKEditor/releases/stable/ ' . $path)) {
         drush_log(dt('CKEditor has been downloaded to @path.', array('@path' => $path)), 'success');
     }
     else {

@@ -1,4 +1,8 @@
-// $Id: ckeditor.utils.js,v 1.1.2.13.2.14 2011/01/13 06:33:19 dczepierga Exp $
+/*
+Copyright (c) 2003-2011, CKSource - Frederico Knabben. All rights reserved.
+For licensing, see LICENSE.html or http://ckeditor.com/license
+*/
+window.CKEDITOR_BASEPATH = Drupal.settings.ckeditor.editor_path;
 (function ($) {
     Drupal.ckeditor = (typeof(CKEDITOR) != 'undefined');
 
@@ -27,7 +31,7 @@
     Drupal.ckeditorOn = function(textarea_id, run_filter) {
 
         run_filter = typeof(run_filter) != 'undefined' ? run_filter : true;
-        
+
         if ((typeof(Drupal.settings.ckeditor.load_timeout) == 'undefined') && (typeof(CKEDITOR.instances[textarea_id]) != 'undefined')) {
             return;
         }
@@ -39,7 +43,7 @@
         if (!CKEDITOR.env.isCompatible) {
             return;
         }
-        
+
         if (run_filter && ($("#" + textarea_id).val().length > 0) && (($("#" + textarea_id).attr('class').indexOf("filterxss1") != -1 && typeof(Drupal.settings.ckeditor.autostart) != 'undefined' && typeof(Drupal.settings.ckeditor.autostart[textarea_id]) != 'undefined') || $("#" + textarea_id).attr('class').indexOf("filterxss2") != -1) && ckeditor_obj.input_formats[ckeditor_obj.elements[textarea_id]].filters.length > 0) {
             $.ajax({
                 type: 'POST',
@@ -55,7 +59,7 @@
                 }
             })
         }
-        
+
         $("#" + textarea_id).next(".grippie").css("display", "none");
         $("#" + textarea_id).addClass("ckeditor-processed");
 
@@ -72,7 +76,7 @@
             instanceReady : function(ev)
             {
                 var body = $(ev.editor.document.$.body);
-                
+
                 if (typeof(ckeditor_obj.input_formats[ckeditor_obj.elements[textarea_id]].custom_formatting) != 'undefined') {
                     var dtd = CKEDITOR.dtd;
                     for ( var e in CKEDITOR.tools.extend( {}, dtd.$block, dtd.$listItem, dtd.$tableContent ) ) {
@@ -97,6 +101,13 @@
             }
         };
 
+        textarea_settings.extraPlugins = '';
+        if (typeof CKEDITOR.plugins != 'undefined'){
+            for (var plugin in textarea_settings['loadPlugins']){
+                textarea_settings.extraPlugins += (textarea_settings.extraPlugins) ? ',' + textarea_settings['loadPlugins'][plugin]['name'] : textarea_settings['loadPlugins'][plugin]['name'];
+                CKEDITOR.plugins.addExternal(textarea_settings['loadPlugins'][plugin]['name'], textarea_settings['loadPlugins'][plugin]['path']);
+            }
+        }
         Drupal.ckeditorInstance = CKEDITOR.replace(textarea_id, textarea_settings);
     };
 
@@ -115,11 +126,10 @@
         if (Drupal.ckeditorInstance && Drupal.ckeditorInstance.name == textarea_id)
             delete Drupal.ckeditorInstance;
 
-        var data = CKEDITOR.instances[textarea_id].getData();
-        CKEDITOR.instances[textarea_id].destroy();
+        $("#" + textarea_id).val(CKEDITOR.instances[textarea_id].getData());
+        CKEDITOR.instances[textarea_id].destroy(true);
 
         $("#" + textarea_id).next(".grippie").css("display", "block");
-        $("#" + textarea_id).removeClass("ckeditor-processed");
     };
 
     /**
@@ -127,7 +137,7 @@
  */
     Drupal.ckeditorOpenPopup = function (jsID, textareaID, width){
         var popupUrl = Drupal.settings.ckeditor.module_path + '/includes/ckeditor.popup.html?var=' + jsID + '&el=' + textareaID;
-  
+
         var percentPos = width.indexOf('%');
         if (percentPos != -1) {
             width = width.substr(0, percentPos);
@@ -149,6 +159,9 @@
         for (var x in ckver) {
             if (ckver[x]<version[x]) {
                 return false;
+            }
+            else if (ckver[x]>version[x]) {
+                return true;
             }
         }
         return true;
@@ -203,20 +216,38 @@
                 Drupal.behaviors.textarea.attach(context);
             }
 
-            $("textarea.ckeditor-mod:not(.ckeditor-processed)").each(function () {
+            $(context).find("textarea.ckeditor-mod:not(.ckeditor-processed)").each(function () {
                 var ta_id=$(this).attr("id");
+                if (CKEDITOR.instances && typeof(CKEDITOR.instances[ta_id]) != 'undefined'){
+                    Drupal.ckeditorOff(ta_id);
+                }
                 if ((typeof(Drupal.settings.ckeditor.autostart) != 'undefined') && (typeof(Drupal.settings.ckeditor.autostart[ta_id]) != 'undefined')) {
                     Drupal.ckeditorOn(ta_id);
                 }
                 var sel_format = ta_id.substr(0, ta_id.lastIndexOf("-")) + "-format--2";
                 $('#'+sel_format).change(function(){
                     Drupal.settings.ckeditor.elements[ta_id] = $(this).val();
+                    if (CKEDITOR.instances[ta_id])
+                        $('#'+ta_id).val(CKEDITOR.instances[ta_id].getData());
                     Drupal.ckeditorOff(ta_id);
                     if (typeof(Drupal.settings.ckeditor.input_formats[$(this).val()]) != 'undefined'){
                         Drupal.ckeditorOn(ta_id, false);
+                        $('#switch_'+ta_id).show();
+                    }
+                    else {
+                        $('#switch_'+ta_id).hide();
                     }
                 });
             });
+        },
+        detach:
+        function(context){
+            $(context).find("textarea.ckeditor-mod.ckeditor-processed").each(function () {
+                var ta_id=$(this).attr("id");
+                if (CKEDITOR.instances[ta_id])
+                    $('#'+ta_id).val(CKEDITOR.instances[ta_id].getData());
+                Drupal.ckeditorOff(ta_id);
+            }).removeClass('ckeditor-processed');
         }
     };
 })(jQuery);

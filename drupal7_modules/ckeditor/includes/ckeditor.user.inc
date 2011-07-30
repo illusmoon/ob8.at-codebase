@@ -1,9 +1,8 @@
 <?php
 
-// $Id: ckeditor.user.inc,v 1.1.2.1.2.3 2010/11/30 09:46:28 dczepierga Exp $
 /**
- * CKEditor - The text editor for Internet - http://ckeditor.com
- * Copyright (c) 2003-2009, CKSource - Frederico Knabben. All rights reserved.
+ * CKEditor - The text editor for the Internet - http://ckeditor.com
+ * Copyright (c) 2003-2011, CKSource - Frederico Knabben. All rights reserved.
  *
  * == BEGIN LICENSE ==
  *
@@ -30,6 +29,7 @@
  * of known desktop editors like Word. It's really  lightweight and doesn't
  * require any kind of installation on the client computer.
  */
+
 function ckeditor_user_customize(&$form, &$form_state, $form_id) {
 
     module_load_include('inc', 'ckeditor', 'includes/ckeditor.lib');
@@ -59,7 +59,7 @@ function ckeditor_user_customize(&$form, &$form_state, $form_id) {
                 't' => t('Enabled'),
                 'f' => t('Disabled')
             ),
-            '#description' => t('Should rich-text editing be enabled or disabled by default in textarea fields? If disabled, rich text editor may still be enabled using toggle or popup window.'),
+            '#description' => t('Should rich-text editing be enabled or disabled by default in textarea fields? If disabled, rich text editor may still be enabled using toggle.'),
         );
 
         $form['ckeditor']['ckeditor_show_toggle'] = array(
@@ -70,9 +70,9 @@ function ckeditor_user_customize(&$form, &$form_state, $form_id) {
                 't' => t('Yes'),
                 'f' => t('No')
             ),
-            '#description' => t('Whether or not to show the disable/enable rich text editor toggle below the textarea. Works only if CKEditor is not running a popup window (see below).'),
+            '#description' => t('Whether or not to show the disable/enable rich text editor toggle below the textarea.'),
         );
-
+/*
         $form['ckeditor']['ckeditor_popup'] = array(
             '#type' => 'radios',
             '#title' => t('Use CKEditor in a popup window'),
@@ -83,7 +83,7 @@ function ckeditor_user_customize(&$form, &$form_state, $form_id) {
             ),
             '#description' => t('If this option is enabled a link to a popup window will be used instead of a textarea replace.'),
         );
-
+*/
         $form['ckeditor']['ckeditor_skin'] = array(
             '#type' => 'select',
             '#title' => t('Skin'),
@@ -138,7 +138,7 @@ function ckeditor_user_customize(&$form, &$form_state, $form_id) {
 }
 
 function ckeditor_user_customize_form_validate(&$form, &$form_state) {
-
+/*
     if (isset($form_state['values']['ckeditor_default'], $form_state['values']['ckeditor_popup']) && $form_state['values']['ckeditor_default'] == 't' && $form_state['values']['ckeditor_popup'] == 't') {
         form_set_error('ckeditor_popup', t('If CKEditor is enabled by default, popup window must be disabled.'));
     }
@@ -146,7 +146,7 @@ function ckeditor_user_customize_form_validate(&$form, &$form_state) {
     if (isset($form_state['values']['ckeditor_show_toggle'], $form_state['values']['ckeditor_popup']) && $form_state['values']['ckeditor_show_toggle'] == 't' && $form_state['values']['ckeditor_popup'] == 't') {
         form_set_error('ckeditor_popup', t('If toggle is enabled, popup window must be disabled.'));
     }
-
+*/
     if (isset($form_state['values']['ckeditor_width']) && !preg_match('/^\d+%?$/', $form_state['values']['ckeditor_width'])) {
         form_set_error('ckeditor_width', t('Enter valid width.') . ' ' . t('Example') . ': 400 ' . t('or') . ' 100%.');
     }
