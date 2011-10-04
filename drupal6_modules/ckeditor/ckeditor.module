@@ -50,7 +50,7 @@ $_ckeditor_ids = array();
 function ckeditor_form_alter(&$form, $form_state, $form_id) {
   // [#659278], [#666560], [#666616]
   if (substr($form_id, -10) == '_node_form') {
-    if (!empty($form['#node']->language)){
+    if (!empty($form['#node']->language)) {
         $form['body_field']['body']['#scayt_language'] = _ckeditor_scayt_langcode($form['#node']->language);
     }
     if (!empty($form['body_field']['teaser_js']['#teaser'])) {
@@ -91,7 +91,7 @@ function ckeditor_user($type, $edit, &$user, $category = NULL) {
  */
 function ckeditor_perm() {
   $arr = array('administer ckeditor', 'access ckeditor');
-  if (file_exists(dirname(ckeditor_path(TRUE)) . "/ckfinder")) {
+  if (file_exists(drupal_get_path('module', 'ckeditor') . "/ckfinder")) {
     $arr[] = 'allow CKFinder file uploads';
   }
   return $arr;
@@ -559,7 +559,7 @@ function ckeditor_process_textarea($element) {
     // get the default drupal files path
     $files_path         = $host . file_directory_path();
 
-    drupal_set_html_head('<script type="text/javascript">window.CKEDITOR_BASEPATH = "'.$editor_path.'/";</script>');
+    drupal_set_html_head('<script type="text/javascript">window.CKEDITOR_BASEPATH = "' . $editor_path . '/";</script>');
 
     // sensible default for small toolbars
     if (isset($element['#rows'])) {
@@ -573,18 +573,18 @@ function ckeditor_process_textarea($element) {
       /* In D6 drupal_add_js() can't add external JS, in D7 use drupal_add_js(...,'external') */
       if ( $conf['popup'] != 't' ) {
         if (isset($conf['ckeditor_load_method'])) {
-          drupal_set_html_head('<script type="text/javascript" src="'. $editor_path . '/' . $conf['ckeditor_load_method'] . '?I"></script>');
+          drupal_add_js($editor_local_path . '/' . $conf['ckeditor_load_method'], 'module', 'header', FALSE, TRUE, FALSE);
           if ($conf['ckeditor_load_method'] == 'ckeditor_basic.js') {
-            drupal_set_html_head('<script type="text/javascript">CKEDITOR.loadFullCoreTimeout = ' . $conf['ckeditor_load_time_out'] . ';</script>');
+            drupal_add_js('CKEDITOR.loadFullCoreTimeout = ' . $conf['ckeditor_load_time_out'] . ';', 'inline');
             drupal_add_js(array('ckeditor' => array('load_timeout' => TRUE)), 'setting');
           }
         }
         else {
-          drupal_set_html_head('<script type="text/javascript" src="'. $editor_path .'/ckeditor.js?I"></script>');
+          drupal_add_js($editor_local_path . '/ckeditor.js?I', 'module', 'header', FALSE, TRUE, FALSE);
         }
       }
       else {
-        drupal_set_html_head('<script type="text/javascript" src="'. $editor_path .'/ckeditor_basic.js?I"></script>');
+        drupal_add_js($editor_local_path . '/ckeditor_basic.js?I', 'module', 'header', FALSE, TRUE, FALSE);
       }
       drupal_add_js(array('ckeditor' => array('module_path' => $module_full_path, 'editor_path' => $editor_path)), 'setting');
       $is_running = TRUE;
@@ -635,7 +635,7 @@ function ckeditor_process_textarea($element) {
       }
     }
     if (isset($conf['loadPlugins'])) {
-      $settings[$textarea_id]['loadPlugins'] = $conf['loadPlugins'];
+      $settings[$textarea_id]['loadPlugins'] = ckeditor_plugins_render($conf['loadPlugins']);
     }
     if (isset($conf['html_entities']) && $conf['html_entities'] == 'f') {
       $settings[$textarea_id]['entities'] = FALSE;
@@ -651,7 +651,7 @@ function ckeditor_process_textarea($element) {
     if ($conf['auto_lang']=="f") {
       $settings[$textarea_id]['language'] = $conf['lang'];
     }
-    if ($element['#scayt_language']) {
+    if (isset($element['#scayt_language'])) {
       $settings[$textarea_id]['scayt_sLang'] = $element['#scayt_language'];
     }
     if (isset($conf['forcePasteAsPlainText']) && $conf['forcePasteAsPlainText'] == 't') {
@@ -766,12 +766,12 @@ function ckeditor_process_textarea($element) {
     switch ($filebrowser) {
       case 'ckfinder':
         if (user_access('allow CKFinder file uploads')) {
-          $settings[$textarea_id]['filebrowserBrowseUrl'] = $lib_path .'/ckfinder/ckfinder.html';
-          $settings[$textarea_id]['filebrowserImageBrowseUrl'] = $lib_path .'/ckfinder/ckfinder.html?Type=Images';
-          $settings[$textarea_id]['filebrowserFlashBrowseUrl'] = $lib_path .'/ckfinder/ckfinder.html?Type=Flash';
-          $settings[$textarea_id]['filebrowserUploadUrl'] = $lib_path .'/ckfinder/core/connector/php/connector.php?command=QuickUpload&type=Files';
-          $settings[$textarea_id]['filebrowserImageUploadUrl'] = $lib_path .'/ckfinder/core/connector/php/connector.php?command=QuickUpload&type=Images';
-          $settings[$textarea_id]['filebrowserFlashUploadUrl'] = $lib_path .'/ckfinder/core/connector/php/connector.php?command=QuickUpload&type=Flash';
+          $settings[$textarea_id]['filebrowserBrowseUrl'] = $module_full_path .'/ckfinder/ckfinder.html';
+          $settings[$textarea_id]['filebrowserImageBrowseUrl'] = $module_full_path .'/ckfinder/ckfinder.html?Type=Images';
+          $settings[$textarea_id]['filebrowserFlashBrowseUrl'] = $module_full_path .'/ckfinder/ckfinder.html?Type=Flash';
+          $settings[$textarea_id]['filebrowserUploadUrl'] = $module_full_path .'/ckfinder/core/connector/php/connector.php?command=QuickUpload&type=Files';
+          $settings[$textarea_id]['filebrowserImageUploadUrl'] = $module_full_path .'/ckfinder/core/connector/php/connector.php?command=QuickUpload&type=Images';
+          $settings[$textarea_id]['filebrowserFlashUploadUrl'] = $module_full_path .'/ckfinder/core/connector/php/connector.php?command=QuickUpload&type=Flash';
         }
         break;
       case 'imce':
@@ -803,8 +803,8 @@ function ckeditor_process_textarea($element) {
       switch ($filebrowser_image) {
         case 'ckfinder':
           if (user_access('allow CKFinder file uploads')) {
-            $settings[$textarea_id]['filebrowserImageBrowseUrl'] = $lib_path .'/ckfinder/ckfinder.html?Type=Images';
-            $settings[$textarea_id]['filebrowserImageUploadUrl'] = $lib_path .'/ckfinder/core/connector/php/connector.php?command=QuickUpload&type=Images';
+            $settings[$textarea_id]['filebrowserImageBrowseUrl'] = $module_full_path .'/ckfinder/ckfinder.html?Type=Images';
+            $settings[$textarea_id]['filebrowserImageUploadUrl'] = $module_full_path .'/ckfinder/core/connector/php/connector.php?command=QuickUpload&type=Images';
           }
           break;
         case 'imce':
@@ -837,8 +837,8 @@ function ckeditor_process_textarea($element) {
       switch ($filebrowser_flash) {
         case 'ckfinder':
           if (user_access('allow CKFinder file uploads')) {
-            $settings[$textarea_id]['filebrowserFlashBrowseUrl'] = $lib_path .'/ckfinder/ckfinder.html?Type=Images';
-            $settings[$textarea_id]['filebrowserFlashUploadUrl'] = $lib_path .'/ckfinder/core/connector/php/connector.php?command=QuickUpload&type=Images';
+            $settings[$textarea_id]['filebrowserFlashBrowseUrl'] = $module_full_path .'/ckfinder/ckfinder.html?Type=Images';
+            $settings[$textarea_id]['filebrowserFlashUploadUrl'] = $module_full_path .'/ckfinder/core/connector/php/connector.php?command=QuickUpload&type=Images';
           }
           break;
         case 'imce':
@@ -869,10 +869,10 @@ function ckeditor_process_textarea($element) {
 
     if (!empty($conf['js_conf'])) {
       //parsing lines with custom configuration
-      preg_match_all('#config\.(\w+)[\s]*=[\s]*(.+?);#is', preg_replace("/[\n\r]+/", "", $conf['js_conf']), $matches);
+      preg_match_all('#config\.(\w+)[\s]*=[\s]*(.+?);[\s]*(?=config\.|$)#is', preg_replace("/[\n\r]+/", "", $conf['js_conf']), $matches);
       foreach ($matches[2] as $i => $match) {
         if (!empty($match)) {
-          $value=trim($match, " ;'\"\n\r\t\0\x0B");
+          $value=trim($match, " ;\n\r\t\0\x0B");
           if ( strcasecmp($value, 'true') == 0 ) {
             $value=TRUE;
           }
@@ -928,6 +928,11 @@ function ckeditor_process_textarea($element) {
             foreach ($theme_info->stylesheets as $type => $stylesheets) {
               if ($type != "print") {
                 foreach ($stylesheets as $name => $path) {
+                  // Checks if less module exists...
+                  if (strstr($path, '.less') && module_exists('less')) {
+                    $path = 'sites/default/files/less/' . $path; // append the less file path
+                    $path = str_replace('.less', '', $path); // remove the .less
+                  }
                   if (file_exists($path)) {
                     $css_files[$name] = $host . $path . $query_string;
                     // Grab rtl stylesheets ( will get rtl css files when thay are named with suffix "-rtl.css" (ex: fusion baased themes) )
@@ -1091,7 +1096,7 @@ function ckeditor_path($local = FALSE, $refresh = FALSE) {
     //default: path to ckeditor subdirectory in the ckeditor module directory (relative to index.php)
     //e.g.: sites/all/modules/ckeditor/ckeditor
     $cke_local_path = $mod_path .'/ckeditor';
-
+    
     if ($global_profile) {
       $gs = $global_profile->settings;
 
@@ -1239,7 +1244,7 @@ function ckeditor_get_nodetype($get_q) {
       }
     }
   }
-
+  $nodetype = str_replace('-', '_', $nodetype);
   return $nodetype;
 }
 
@@ -1281,7 +1286,7 @@ function _ckeditor_scayt_langcode($lang) {
     return $scayt_langs[$lang];
   }
 
-  $default = language_default();
+  $default = language_default('language');
   if (array_key_exists($default, $scayt_langs)) {
     return $scayt_langs[$default];
   }

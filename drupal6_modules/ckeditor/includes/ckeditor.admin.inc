@@ -43,7 +43,7 @@ function ckeditor_admin_main() {
     return FALSE;
   }
 
-  if (module_exists('wysiwyg')){
+  if (module_exists('wysiwyg')) {
     drupal_set_message(t('WYSIWYG module was detected. Using both modules at the same time may cause problems. It is recommended to turn the WYSIWYG module off (!wysiwygdisablelink).', array('!wysiwygdisablelink' => l(t('click here to disable'), 'ckeditor/disable/wysiwyg'))), 'warning');
   }
 
@@ -461,7 +461,7 @@ function ckeditor_admin_profile_form($form_state, $profile = NULL) {
   $module_drupal_path = drupal_get_path('module', 'ckeditor');
   drupal_add_js($module_drupal_path .'/includes/ckeditor.admin.js');
 
-  drupal_set_html_head('<script type="text/javascript">window.CKEDITOR_BASEPATH = "'.$editor_path.'/";</script>');
+  drupal_set_html_head('<script type="text/javascript">window.CKEDITOR_BASEPATH = "' . $editor_path . '/";</script>');
   drupal_set_html_head('<script type="text/javascript" src="'. $editor_path .'/ckeditor.js?I"></script>');
 
   $form['appearance']['uicolor'] = array(
@@ -495,19 +495,19 @@ function ckeditor_admin_profile_form($form_state, $profile = NULL) {
     '#description' => t('Choose a default toolbar set. To define new toolbar, edit "ckeditor.config.js" located in "!module_path".', array('!module_path' => drupal_get_path('module', 'ckeditor'))),
   );
 
-  $pluginList = ckeditor_load_plugins();
+  $plugin_list = ckeditor_load_plugins();
   $plugins = array();
-  if (isset($profile->settings['loadPlugins'])){
-    foreach ($pluginList AS $key => $val) {
+  if (isset($profile->settings['loadPlugins'])) {
+    foreach ($plugin_list AS $key => $val) {
       $plugins[$key] = $val['desc'];
     }
   }
   else {
-    $defaultPlugins = array();
-    foreach ($pluginList AS $key => $val) {
+    $default_plugins = array();
+    foreach ($plugin_list AS $key => $val) {
       $plugins[$key] = $val['desc'];
-        if ($val['default'] == 't'){
-          $defaultPlugins[] = $key;
+        if ($val['default'] == 't') {
+          $default_plugins[] = $key;
         }
     }
   }
@@ -515,7 +515,7 @@ function ckeditor_admin_profile_form($form_state, $profile = NULL) {
   $form['appearance']['loadPlugins'] = array(
     '#type' => 'checkboxes',
     '#title' => t('Plugins'),
-    '#default_value' => isset($profile->settings['loadPlugins']) ? array_keys((array) $profile->settings['loadPlugins']) : $defaultPlugins,
+    '#default_value' => isset($profile->settings['loadPlugins']) ? array_keys((array) $profile->settings['loadPlugins']) : $default_plugins,
     '#options' => $plugins,
     '#description' => t('Choose the plugins which u want to load into CKEditor.')
   );
@@ -909,7 +909,7 @@ function ckeditor_admin_profile_form($form_state, $profile = NULL) {
     '#default_value' => !empty($profile->settings['js_conf']) ? $profile->settings['js_conf'] : "",
     '#cols' => 60,
     '#rows' => 5,
-    '#description' => t('To change CKEditor configuration globally, you should modify the config file: "!ckeditor_config". Sometimes it is required to change the CKEditor configuration for a single profile only. Use this box to define settings that are unique for this profile. Available options are listed in the <a href="!docs">CKEditor documentation</a>. Add the following code snippet to change available fonts in combo boxes in CKEditor: <pre>@code</pre><strong>Warning</strong>: If you make something wrong here, CKEditor may fail to load.', array('!ckeditor_config' => drupal_get_path('module', 'ckeditor') ."/ckeditor.config.js", '!docs' => 'http://docs.cksource.com/ckeditor_api/symbols/CKEDITOR.config.html', '@code' => "fontSize_sizes = '16/16px;24/24px;48/48px;'\nfont_names = 'Arial;Times New Roman;Verdana'")),
+    '#description' => t('To change CKEditor configuration globally, you should modify the config file: "!ckeditor_config". Sometimes it is required to change the CKEditor configuration for a single profile only. Use this box to define settings that are unique for this profile. Available options are listed in the <a href="!docs">CKEditor documentation</a>. Add the following code snippet to change available fonts in combo boxes in CKEditor: <pre>@code</pre><strong>Warning</strong>: If you make something wrong here, CKEditor may fail to load.', array('!ckeditor_config' => drupal_get_path('module', 'ckeditor') ."/ckeditor.config.js", '!docs' => 'http://docs.cksource.com/ckeditor_api/symbols/CKEDITOR.config.html', '@code' => "config.fontSize_sizes = '16/16px;24/24px;48/48px;'\nconfig.font_names = 'Arial;Times New Roman;Verdana'")),
     '#wysiwyg' => FALSE,
   );
 
@@ -1331,18 +1331,18 @@ function ckeditor_admin_global_profile_form_submit($form, &$form_state) {
  */
 function ckeditor_admin_values_to_settings($values) {
   $plugins = array();
-  if (isset($values['loadPlugins'])){
+  if (isset($values['loadPlugins'])) {
     $plugins = $values['loadPlugins'];
   }
   unset($values['name'], $values['rids'], $values['_profile'], $values['op'], $values['submit'], $values['form_build_id'], $values['form_token'], $values['form_id'], $values['loadPlugins']);
   
   module_load_include('inc', 'ckeditor', 'includes/ckeditor.lib');
-  $pluginList = ckeditor_load_plugins();
+  $plugin_list = ckeditor_load_plugins();
   $values['loadPlugins'] = array();
   if (!empty($plugins)) {
     foreach (array_keys($plugins) as $plugin) {
       if ($plugins[$plugin] != '0') {
-        $values['loadPlugins'][$plugin] = $pluginList[$plugin];
+        $values['loadPlugins'][$plugin] = $plugin_list[$plugin];
       }
     }
   }
@@ -1554,7 +1554,7 @@ function _ckeditor_load_methods() {
 /*
  * Disable WYSIWYG module
  */
-function ckeditor_disable_wysiwyg(){
+function ckeditor_disable_wysiwyg() {
   module_disable(array('wysiwyg'));
   drupal_set_message(t('WYSIWYG module disabled.'));
 

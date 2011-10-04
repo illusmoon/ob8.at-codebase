@@ -1,9 +1,44 @@
 -----------------------------
+ 2011-08-30
+ New stable release: 6.x-1.6
+-----------------------------
+--2011-08-25
+- [#1248532] by dczepierga: Replace static paths to plugins in the database with dynamic paths
+
+--2011-08-16
+- [#1063458] by tobykilroy: 'CKEDITOR' is not defined - problem with ckeditor.styles.js
+
+--2011-08-11
+- [#1224726] by dczepierga: Use either underscores or hyphens for excluding/including, not both
+
+--2011-08-10
+- [#1243616] by dczepierga: "Custom JavaScript configuration" field description is wrong
+
+--2011-08-02
+- [#1234274] by GDI: Drupal Pagebreak button not showing
+- [#1211554] by dczepierga: Bug with CKFinder path when CKEditor is in the libraries directory
+
+--2011-07-14
+- [#1216458] by dczepierga: Rewrite the loading of CKEditor libraries files
+
+--2011-07-12
+- [#1216096] by dczepierga: Bug in custom JavaScript configuration - semicolon problem
+
+--2011-07-08
+- [#1191634] by ptoly: CKEditor: Using LESS file instead of CSS for custom editor stylesheet
+
+--2011-06-30
+- [#1204786] by dczepierga: Bug in custom JavaScript configuration - editor not showing in some cases
+
+--2011-06-28
+- [#1202508] by dczepierga: Fix warning: array_key_exists(): The first argument should be either a string or an integer in ckeditor.module
+
+-----------------------------
  2011-06-28
  New stable release: 6.x-1.5
 -----------------------------
 --2011-06-27
-- [#1177132] by tangent: Add Scayt spelling language to match node language
+- [#1177132] by tangent: Add SCAYT spelling language to match node language
 
 --2011-06-20
 - [#1192676] by dczepierga: Fix is_dir() function error and broken pagebreak button
